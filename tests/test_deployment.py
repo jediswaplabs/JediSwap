@@ -1,8 +1,15 @@
 import pytest
 import asyncio
 
-def uint(a):
-    return(a, 0)
+
+@pytest.mark.asyncio
+async def test_pair(pair, pair_name, pair_symbol):
+    execution_info = await pair.name().call()
+    assert execution_info.result[0] == pair_name
+    execution_info = await pair.symbol().call()
+    assert execution_info.result[0] == pair_symbol
+    execution_info = await pair.decimals().call()
+    assert execution_info.result[0] == 18
 
 @pytest.mark.asyncio
 async def test_pair_in_registry(registry, token_0, token_1, pair):

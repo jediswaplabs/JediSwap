@@ -12,7 +12,7 @@ from starkware.cairo.common.uint256 import (
 from starkware.cairo.common.alloc import alloc
 
 const MINIMUM_LIQUIDITY = 1000
-const BURN_ADDRESS = 0
+const BURN_ADDRESS = 1
 
 
 #
@@ -20,7 +20,11 @@ const BURN_ADDRESS = 0
 #
 @contract_interface
 namespace IERC20:
+    
     func balanceOf(account: felt) -> (balance: Uint256):
+    end
+
+    func transfer(recipient: felt, amount: Uint256) -> (success: felt):
     end
 
     func transferFrom(
@@ -238,6 +242,7 @@ func fee_setter{
     return (address)
 end
 
+@view
 func get_reserves{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
@@ -392,7 +397,12 @@ func mint{
         let (is_equal_to_zero) =  uint256_eq(mul_high, Uint256(0, 0))
         assert is_equal_to_zero = 1
 
-        let (initial_liquidity: Uint256) = uint256_sub(mul_low, Uint256(MINIMUM_LIQUIDITY, 0))
+        # let (mul_sqrt: Uint256) = uint256_sqrt(mul_low)  TODO, Need SQRT URGENTLY
+
+        local mul_sqrt: Uint256
+        assert mul_sqrt = amount0
+
+        let (initial_liquidity: Uint256) = uint256_sub(mul_sqrt, Uint256(MINIMUM_LIQUIDITY, 0))
         assert liquidity = initial_liquidity
         _mint(BURN_ADDRESS, Uint256(MINIMUM_LIQUIDITY, 0))
         tempvar syscall_ptr = syscall_ptr
@@ -487,8 +497,8 @@ func burn{
 
     _burn(self_address, liquidity)
 
-    IERC20.transferFrom(contract_address=token0, sender=self_address, recipient=to, amount=amount0)
-    IERC20.transferFrom(contract_address=token1, sender=self_address, recipient=to, amount=amount1)
+    IERC20.transfer(contract_address=token0, recipient=to, amount=amount0)
+    IERC20.transfer(contract_address=token1, recipient=to, amount=amount1)
 
     let (local final_balance0: Uint256) = IERC20.balanceOf(contract_address=token0, account=self_address)
     let (local final_balance1: Uint256) = IERC20.balanceOf(contract_address=token1, account=self_address)
