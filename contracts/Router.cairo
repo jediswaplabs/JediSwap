@@ -39,7 +39,7 @@ func constructor{
 end
 
 #
-# Getters ERC20
+# Getters
 #
 
 @view
