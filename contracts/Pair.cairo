@@ -1,7 +1,7 @@
 %lang starknet
 %builtins pedersen range_check
 
-from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address, get_contract_address
 from starkware.cairo.common.math import assert_not_zero, assert_in_range, assert_le, assert_not_equal
 from starkware.cairo.common.math_cmp import is_not_zero
@@ -10,29 +10,10 @@ from starkware.cairo.common.uint256 import (
     Uint256, uint256_add, uint256_sub, uint256_le, uint256_lt, uint256_check, uint256_eq, uint256_mul, uint256_unsigned_div_rem
 )
 from starkware.cairo.common.alloc import alloc
+from interfaces.IERC20 import IERC20
 
 const MINIMUM_LIQUIDITY = 1000
 const BURN_ADDRESS = 0
-
-#
-# Interface ERC20
-#
-
-@contract_interface
-namespace IERC20:
-    func balanceOf(account: felt) -> (balance: Uint256):
-    end
-    
-    func transfer(recipient: felt, amount: Uint256) -> (success: felt):
-    end
-
-    func transferFrom(
-            sender: felt, 
-            recipient: felt, 
-            amount: Uint256
-        ) -> (success: felt):
-    end
-end
 
 #
 # Storage ERC20
