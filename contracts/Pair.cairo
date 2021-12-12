@@ -10,10 +10,26 @@ from starkware.cairo.common.uint256 import (
     Uint256, uint256_add, uint256_sub, uint256_le, uint256_lt, uint256_check, uint256_eq, uint256_mul, uint256_unsigned_div_rem
 )
 from starkware.cairo.common.alloc import alloc
-from interfaces.IERC20 import IERC20
 
 const MINIMUM_LIQUIDITY = 1000
 const BURN_ADDRESS = 0
+
+
+#
+# Interface ERC20
+#
+@contract_interface
+namespace IERC20:
+    func balanceOf(account: felt) -> (balance: Uint256):
+    end
+
+    func transferFrom(
+            sender: felt, 
+            recipient: felt, 
+            amount: Uint256
+        ) -> (success: felt):
+    end
+end
 
 #
 # Storage ERC20
