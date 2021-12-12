@@ -98,18 +98,18 @@ func constructor{
     ):
     # get_caller_address() returns '0' in the constructor;
     # therefore, fee_to parameter is included
-    assert_not_equal(name, 0)
+    assert_not_zero(name)
     _name.write(name)
-    assert_not_equal(symbol, 0)
+    assert_not_zero(symbol)
     _symbol.write(symbol)
     _decimals.write(18)
     _locked.write(0)
-    assert_not_equal(token0, 0)
+    assert_not_zero(token0)
     _token0.write(token0)
-    assert_not_equal(token1, 0)
+    assert_not_zero(token1)
     _token1.write(token1)
     _fee_to.write(0)
-    assert_not_equal(fee_setter, 0)
+    assert_not_zero(fee_setter)
     _fee_setter.write(fee_setter)
     return ()
 end
