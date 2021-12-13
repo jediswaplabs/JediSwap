@@ -117,7 +117,7 @@ func constructor{
         fee_setter: felt
     ):
     # get_caller_address() returns '0' in the constructor;
-    # therefore, fee_to parameter is included
+    # therefore, fee_setter parameter is included
     assert_not_zero(name)
     _name.write(name)
     assert_not_zero(symbol)
@@ -560,7 +560,7 @@ func swap{
     let (self_address) = get_contract_address()
 
     if is_amount0out_greater_than_zero == 1:
-        IERC20.transferFrom(contract_address=token0, sender=self_address, recipient=to, amount=amount0Out)
+        IERC20.transfer(contract_address=token0, recipient=to, amount=amount0Out)
         tempvar syscall_ptr = syscall_ptr
         tempvar pedersen_ptr = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
@@ -571,7 +571,7 @@ func swap{
     end
     
     if is_amount1out_greater_than_zero == 1:
-        IERC20.transferFrom(contract_address=token1, sender=self_address, recipient=to, amount=amount1Out)
+        IERC20.transfer(contract_address=token1, recipient=to, amount=amount1Out)
         tempvar syscall_ptr = syscall_ptr
         tempvar pedersen_ptr = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
@@ -665,8 +665,8 @@ func skim{
     let (local amount0: Uint256) = uint256_sub(balance0, reserve0)
     let (local amount1: Uint256) = uint256_sub(balance1, reserve1)
 
-    IERC20.transferFrom(contract_address=token0, sender=self_address, recipient=to, amount=amount0)
-    IERC20.transferFrom(contract_address=token1, sender=self_address, recipient=to, amount=amount1)
+    IERC20.transfer(contract_address=token0, recipient=to, amount=amount0)
+    IERC20.transfer(contract_address=token1, recipient=to, amount=amount1)
 
     _unlock()
 

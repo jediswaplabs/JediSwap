@@ -85,6 +85,15 @@ func registry{
 end
 
 @view
+func sort_tokens{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(tokenA: felt, tokenB: felt) -> (token0: felt, token1: felt):
+    return _sort_tokens(tokenA, tokenB)
+end
+
+@view
 func quote{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -206,7 +215,7 @@ func swap_exact_tokens_for_tokens{
     _ensure_deadline(deadline)
     let (local registry) = _registry.read()
     let (local amounts: Uint256*) = _get_amounts_out(registry, amountIn, path_len, path)
-    let (is_amount_last_greater_than_equal_amountOutMin) = uint256_le(amountOutMin, [amounts + path_len * Uint256.SIZE])
+    let (is_amount_last_greater_than_equal_amountOutMin) = uint256_le(amountOutMin, [amounts + (path_len - 1) * Uint256.SIZE])
     assert is_amount_last_greater_than_equal_amountOutMin = 1
     let (local pair) = _pair_for(registry, [path], [path + 1])
     let (sender) = get_caller_address()
@@ -303,9 +312,9 @@ func _swap{
     local amount1Out: Uint256
     if [path] == token0:
         assert amount0Out = Uint256(0, 0)
-        assert amount1Out = [amounts + 1]
+        assert amount1Out = [amounts + Uint256.SIZE]
     else:
-        assert amount0Out = [amounts + 1]
+        assert amount0Out = [amounts + Uint256.SIZE]
         assert amount1Out = Uint256(0, 0)
     end
     local to
@@ -324,7 +333,7 @@ func _swap{
     end
     let (local pair) = _pair_for(registry, [path], [path + 1])
     IPair.swap(contract_address=pair, amount0Out=amount0Out, amount1Out=amount1Out, to=to)
-    return ()
+    return _swap(current_index + 1, amounts_len, amounts + Uint256.SIZE, path + 1, _to)
 end
 
 func _convert_uint256_array_to_felt_array{
@@ -505,7 +514,7 @@ func _build_amounts_out{
         tempvar range_check_ptr = range_check_ptr
     else:
         let (local reserveIn: Uint256, local reserveOut: Uint256) = _get_reserves(registry, [path - 1], [path])
-        let (local amountOut: Uint256) = _get_amount_out([amounts - 1], reserveIn, reserveOut)
+        let (local amountOut: Uint256) = _get_amount_out([amounts - Uint256.SIZE], reserveIn, reserveOut)
         assert [amounts] = amountOut
         tempvar syscall_ptr = syscall_ptr
         tempvar pedersen_ptr = pedersen_ptr
@@ -523,7 +532,7 @@ func _get_amounts_in{
     alloc_locals
     assert_le(2, path_len)
     let (local amounts_start : Uint256*) = alloc()
-    let (amounts_start_temp: Uint256*) = _build_amounts_in(registry, amountOut, path_len - 1, path_len, path + path_len, amounts_start + path_len * Uint256.SIZE)
+    let (amounts_start_temp: Uint256*) = _build_amounts_in(registry, amountOut, path_len - 1, path_len, path + (path_len - 1), amounts_start + (path_len - 1) * Uint256.SIZE)
     
     return (amounts_start)
 end
@@ -542,7 +551,7 @@ func _build_amounts_in{
         tempvar range_check_ptr = range_check_ptr
     else:
         let (local reserveIn: Uint256, local reserveOut: Uint256) = _get_reserves(registry, [path], [path + 1])
-        let (local amountIn: Uint256) = _get_amount_in([amounts + 1], reserveIn, reserveOut)
+        let (local amountIn: Uint256) = _get_amount_in([amounts + Uint256.SIZE], reserveIn, reserveOut)
         assert [amounts] = amountIn
         tempvar syscall_ptr = syscall_ptr
         tempvar pedersen_ptr = pedersen_ptr
@@ -553,5 +562,5 @@ func _build_amounts_in{
         return (amounts)
     end
     
-    return _build_amounts_out(registry, amountOut, current_index - 1, path_len, path - 1, amounts - Uint256.SIZE)
+    return _build_amounts_in(registry, amountOut, current_index - 1, path_len, path - 1, amounts - Uint256.SIZE)
 end

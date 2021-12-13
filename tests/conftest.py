@@ -54,6 +54,16 @@ async def user_1(starknet):
     return user_1_signer, user_1_account
 
 @pytest.fixture
+async def user_2(starknet):
+    user_2_signer = Signer(987654321123456789)
+    user_2_account = await starknet.deploy(
+        "contracts/test/Account.cairo",
+        constructor_calldata=[user_2_signer.public_key]
+    )
+
+    return user_2_signer, user_2_account
+
+@pytest.fixture
 async def fee_recipient(starknet):
     fee_recipient_signer = Signer(987654301103456789)
     fee_recipient_account = await starknet.deploy(
@@ -89,6 +99,19 @@ async def token_1(starknet, random_acc):
     return token_1
 
 @pytest.fixture
+async def token_2(starknet, random_acc):
+    random_signer, random_account = random_acc
+    token_2 = await starknet.deploy(
+        "contracts/test/token/ERC20.cairo",
+        constructor_calldata=[
+            str_to_felt("Token 2"),  # name
+            str_to_felt("TOKEN2"),  # symbol
+            random_account.contract_address
+        ]
+    )
+    return token_2
+
+@pytest.fixture
 async def pair_name():
     return str_to_felt(index_name_string)
 
@@ -114,17 +137,51 @@ async def router(starknet, deployer, registry):
     return router
 
 @pytest.fixture
-async def pair(starknet, deployer, pair_name, pair_symbol, token_0, token_1, registry):
+async def pair(starknet, deployer, pair_name, pair_symbol, token_0, token_1, router, registry):
     deployer_signer, deployer_account = deployer
+    if token_0.contract_address < token_1.contract_address:
+        token_0_contract_address = token_0.contract_address
+        token_1_contract_address = token_1.contract_address
+    else:
+        token_0_contract_address = token_1.contract_address
+        token_1_contract_address = token_0.contract_address
+    print(f"{token_0.contract_address}, {token_1.contract_address}, {token_0_contract_address}, {token_1_contract_address}")
+    execution_info = await router.sort_tokens(token_0.contract_address, token_1.contract_address).call()
+    print(f"{execution_info.result.token0}, {execution_info.result.token1}")
     pair = await starknet.deploy(
         "contracts/Pair.cairo",
         constructor_calldata=[
             pair_name,  # name
             pair_symbol,  # symbol
-            token_0.contract_address,   # token0
-            token_1.contract_address,   # token1
+            execution_info.result.token0,   # token0
+            execution_info.result.token1,   # token1
             deployer_account.contract_address   # fee_setter
         ]
     )
     await deployer_signer.send_transaction(deployer_account, registry.contract_address, 'set_pair', [token_0.contract_address, token_1.contract_address, pair.contract_address])
     return pair
+
+@pytest.fixture
+async def other_pair(starknet, deployer, pair_name, pair_symbol, token_1, token_2, router, registry):
+    deployer_signer, deployer_account = deployer
+    if token_1.contract_address < token_2.contract_address:
+        token_0_contract_address = token_1.contract_address
+        token_1_contract_address = token_2.contract_address
+    else:
+        token_0_contract_address = token_2.contract_address
+        token_1_contract_address = token_1.contract_address
+    print(f"{token_1.contract_address}, {token_2.contract_address}, {token_0_contract_address}, {token_1_contract_address}")
+    execution_info = await router.sort_tokens(token_1.contract_address, token_2.contract_address).call()
+    print(f"{execution_info.result.token0}, {execution_info.result.token1}")
+    other_pair = await starknet.deploy(
+        "contracts/Pair.cairo",
+        constructor_calldata=[
+            pair_name,  # name
+            pair_symbol,  # symbol
+            execution_info.result.token0,   # token0
+            execution_info.result.token1,   # token1
+            deployer_account.contract_address   # fee_setter
+        ]
+    )
+    await deployer_signer.send_transaction(deployer_account, registry.contract_address, 'set_pair', [token_1.contract_address, token_2.contract_address, other_pair.contract_address])
+    return other_pair

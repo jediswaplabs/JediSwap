@@ -17,13 +17,13 @@ async def test_add_liquidity(starknet, router, pair, token_0, token_1, user_1, r
     execution_info = await token_0.decimals().call()
     token_0_decimals = execution_info.result.decimals
     amount_to_mint_token_0 = 100 * (10 ** token_0_decimals)
-    ## Mint token_0 to user_1 and approve to index
+    ## Mint token_0 to user_1
     await random_signer.send_transaction(random_account, token_0.contract_address, 'mint', [user_1_account.contract_address, *uint(amount_to_mint_token_0)])
     
     execution_info = await token_1.decimals().call()
     token_1_decimals = execution_info.result.decimals
     amount_to_mint_token_1 = 100 * (10 ** token_1_decimals)
-    ## Mint token_0 to user_1 and approve to index
+    ## Mint token_0 to user_1
     await random_signer.send_transaction(random_account, token_1.contract_address, 'mint', [user_1_account.contract_address, *uint(amount_to_mint_token_1)])
 
     amount_token_0 = 2 * (10 ** token_0_decimals)
@@ -94,13 +94,13 @@ async def test_add_liquidity(starknet, router, pair, token_0, token_1, user_1, r
     print(f"{reserve_0}, {reserve_1}, {total_supply}")
     assert total_supply * total_supply <= reserve_0 * reserve_1
 
-    raw_execution_info = await starknet.state.invoke_raw(token_0.contract_address, 'balanceOf', [user_1_account.contract_address], random_account.contract_address)
-    user_1_token_0_balance = raw_execution_info.retdata[0]
+    execution_info = await token_0.balanceOf(user_1_account.contract_address).call()
+    user_1_token_0_balance = execution_info.result.balance[0]
     print(f"Check: depleted user balance for token_0: {amount_to_mint_token_0}, {user_1_token_0_balance}, {reserve_0}")
     assert amount_to_mint_token_0 - user_1_token_0_balance == reserve_0
 
-    raw_execution_info = await starknet.state.invoke_raw(token_1.contract_address, 'balanceOf', [user_1_account.contract_address], random_account.contract_address)
-    user_1_token_1_balance = raw_execution_info.retdata[0]
+    execution_info = await token_1.balanceOf(user_1_account.contract_address).call()
+    user_1_token_1_balance = execution_info.result.balance[0]
     print(f"Check: depleted user balance for token_1: {amount_to_mint_token_1}, {user_1_token_1_balance}, {reserve_1}")
     assert amount_to_mint_token_1 - user_1_token_1_balance == reserve_1
 
