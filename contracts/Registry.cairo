@@ -85,6 +85,7 @@ func transfer_ownership{
         range_check_ptr
     }(new_owner: felt) -> (new_owner: felt):
     _only_owner()
+    assert_not_zero(new_owner)
     _owner.write(new_owner)
     return (new_owner=new_owner)
 end
