@@ -28,9 +28,8 @@ async def initialize_pairs(router, token_0, token_1, token_2, user_1, random_acc
     ## Mint token_2 to user_1
     await random_signer.send_transaction(random_account, token_2.contract_address, 'mint', [user_1_account.contract_address, *uint(amount_to_mint_token_2)])
 
-    amount_token_0 = 20 * (10 ** token_0_decimals)
-    # amount_token_1 = 4 * (10 ** token_1_decimals)  ## TODO Will change once sqrt is available
-    amount_token_1 = amount_token_0
+    amount_token_0 = 2 * (10 ** token_0_decimals)
+    amount_token_1 = 4 * (10 ** token_1_decimals)
     print("Approve required tokens to be spent by router")
     await user_1_signer.send_transaction(user_1_account, token_0.contract_address, 'approve', [router.contract_address, *uint(amount_token_0)])
     await user_1_signer.send_transaction(user_1_account, token_1.contract_address, 'approve', [router.contract_address, *uint(amount_token_1)])
@@ -48,9 +47,8 @@ async def initialize_pairs(router, token_0, token_1, token_2, user_1, random_acc
         0
     ])
 
-    amount_token_1 = 20 * (10 ** token_0_decimals)
-    # amount_token_1 = 4 * (10 ** token_1_decimals)  ## TODO Will change once sqrt is available
-    amount_token_2 = amount_token_1
+    amount_token_1 = 20 * (10 ** token_1_decimals)
+    amount_token_2 = 4 * (10 ** token_2_decimals)
     print("Approve required tokens to be spent by router")
     await user_1_signer.send_transaction(user_1_account, token_1.contract_address, 'approve', [router.contract_address, *uint(amount_token_1)])
     await user_1_signer.send_transaction(user_1_account, token_2.contract_address, 'approve', [router.contract_address, *uint(amount_token_2)])

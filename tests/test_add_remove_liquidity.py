@@ -27,8 +27,8 @@ async def test_add_liquidity(starknet, router, pair, token_0, token_1, user_1, r
     await random_signer.send_transaction(random_account, token_1.contract_address, 'mint', [user_1_account.contract_address, *uint(amount_to_mint_token_1)])
 
     amount_token_0 = 2 * (10 ** token_0_decimals)
-    # amount_token_1 = 4 * (10 ** token_1_decimals)  ## TODO Will change once sqrt is available
-    amount_token_1 = amount_token_0
+    amount_token_1 = 4 * (10 ** token_1_decimals)  ## TODO Will change once sqrt is available
+    # amount_token_1 = amount_token_0
     print("Approve required tokens to be spent by router")
     await user_1_signer.send_transaction(user_1_account, token_0.contract_address, 'approve', [router.contract_address, *uint(amount_token_0)])
     await user_1_signer.send_transaction(user_1_account, token_1.contract_address, 'approve', [router.contract_address, *uint(amount_token_1)])
@@ -53,9 +53,15 @@ async def test_add_liquidity(starknet, router, pair, token_0, token_1, user_1, r
     assert amountB == amount_token_1
     assert float(liquidity) == math.sqrt(amount_token_0 * amount_token_1) - MINIMUM_LIQUIDITY
 
+    sort_info = await router.sort_tokens(token_0.contract_address, token_1.contract_address).call()
+    
     execution_info = await pair.get_reserves().call()
-    reserve_0 = execution_info.result.reserve0[0]
-    reserve_1 = execution_info.result.reserve1[0]
+    if (sort_info.result.token0 == token_0.contract_address):
+        reserve_0 = execution_info.result.reserve0[0]
+        reserve_1 = execution_info.result.reserve1[0]
+    else:
+        reserve_1 = execution_info.result.reserve0[0]
+        reserve_0 = execution_info.result.reserve1[0]
     execution_info = await pair.totalSupply().call()
     total_supply = execution_info.result.totalSupply[0]
     print(f"{reserve_0}, {reserve_1}, {total_supply}")
@@ -87,8 +93,12 @@ async def test_add_liquidity(starknet, router, pair, token_0, token_1, user_1, r
     print(f"{amountA}, {amountB}, {liquidity}")
 
     execution_info = await pair.get_reserves().call()
-    reserve_0 = execution_info.result.reserve0[0]
-    reserve_1 = execution_info.result.reserve1[0]
+    if (sort_info.result.token0 == token_0.contract_address):
+        reserve_0 = execution_info.result.reserve0[0]
+        reserve_1 = execution_info.result.reserve1[0]
+    else:
+        reserve_1 = execution_info.result.reserve0[0]
+        reserve_0 = execution_info.result.reserve1[0]
     execution_info = await pair.totalSupply().call()
     total_supply = execution_info.result.totalSupply[0]
     print(f"{reserve_0}, {reserve_1}, {total_supply}")
@@ -143,7 +153,11 @@ async def test_add_liquidity(starknet, router, pair, token_0, token_1, user_1, r
     assert total_supply == burn_address_pair_balance
 
     execution_info = await pair.get_reserves().call()
-    reserve_0 = execution_info.result.reserve0[0]
-    reserve_1 = execution_info.result.reserve1[0]
+    if (sort_info.result.token0 == token_0.contract_address):
+        reserve_0 = execution_info.result.reserve0[0]
+        reserve_1 = execution_info.result.reserve1[0]
+    else:
+        reserve_1 = execution_info.result.reserve0[0]
+        reserve_0 = execution_info.result.reserve1[0]
     print(f"{reserve_0}, {reserve_1}, {total_supply}")
     assert total_supply * total_supply <= reserve_0 * reserve_1

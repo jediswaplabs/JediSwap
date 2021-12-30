@@ -261,6 +261,16 @@ func klast{
     return (res)
 end
 
+@view
+func sqrt{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(x: Uint256) -> (res: Uint256):
+    let (res) = _uint256_sqrt(x)
+    return (res)
+end
+
 #
 # Externals ERC20
 #
@@ -397,10 +407,10 @@ func mint{
         let (is_equal_to_zero) =  uint256_eq(mul_high, Uint256(0, 0))
         assert is_equal_to_zero = 1
 
-        # let (mul_sqrt: Uint256) = uint256_sqrt(mul_low)  TODO, Need SQRT URGENTLY
+        let (mul_sqrt: Uint256) = _uint256_sqrt(mul_low)
 
-        local mul_sqrt: Uint256
-        assert mul_sqrt = amount0
+        # local mul_sqrt: Uint256
+        # assert mul_sqrt = amount0
 
         let (initial_liquidity: Uint256) = uint256_sub(mul_sqrt, Uint256(MINIMUM_LIQUIDITY, 0))
         assert liquidity = initial_liquidity
@@ -905,4 +915,54 @@ func _update_reserves{
     _reserve0.write(balance0)
     _reserve1.write(balance1)
     return ()
+end
+
+func _uint256_sqrt{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(y: Uint256) -> (z: Uint256):
+    alloc_locals
+    uint256_check(y)
+    local z: Uint256
+    let (is_y_greater_than_3) = uint256_lt(Uint256(3, 0), y)
+    if is_y_greater_than_3 == 1:
+        let (y_div_2: Uint256, _) = uint256_unsigned_div_rem(y, Uint256(2, 0))
+        let (x: Uint256, is_overflow) = uint256_add(y_div_2, Uint256(1, 0))
+        assert (is_overflow) = 0
+        let (final_z: Uint256) = _build_sqrt(x, y, y)
+        assert z = final_z
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    else:
+        let (is_y_equal_to_0) =  uint256_eq(y, Uint256(0, 0))
+        if is_y_equal_to_0 == 1:
+            assert z = Uint256(0, 0)
+        else:
+            assert z = Uint256(1, 0)
+        end
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    end
+    return (z)
+end
+
+func _build_sqrt{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(x: Uint256, y: Uint256, z: Uint256) -> (res: Uint256):
+    alloc_locals
+    let (is_x_less_than_z) = uint256_lt(x, z)
+    if is_x_less_than_z == 1:
+        let (y_div_x: Uint256, _) = uint256_unsigned_div_rem(y, x)
+        let (temp_x_2: Uint256, is_overflow) = uint256_add(y_div_x, x)
+        assert (is_overflow) = 0
+        let (temp_x: Uint256, _) = uint256_unsigned_div_rem(temp_x_2, Uint256(2, 0))
+        return _build_sqrt(temp_x, y, x)
+    else:
+        return (z)
+    end
 end
