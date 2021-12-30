@@ -148,7 +148,7 @@ async def pair(starknet, deployer, pair_name, pair_symbol, token_0, token_1, rou
             pair_symbol,  # symbol
             execution_info.result.token0,   # token0
             execution_info.result.token1,   # token1
-            deployer_account.contract_address   # fee_setter
+            registry.contract_address
         ]
     )
     await deployer_signer.send_transaction(deployer_account, registry.contract_address, 'set_pair', [token_0.contract_address, token_1.contract_address, pair.contract_address])
@@ -165,7 +165,7 @@ async def other_pair(starknet, deployer, pair_name, pair_symbol, token_1, token_
             pair_symbol,  # symbol
             execution_info.result.token0,   # token0
             execution_info.result.token1,   # token1
-            deployer_account.contract_address   # fee_setter
+            registry.contract_address
         ]
     )
     await deployer_signer.send_transaction(deployer_account, registry.contract_address, 'set_pair', [token_1.contract_address, token_2.contract_address, other_pair.contract_address])

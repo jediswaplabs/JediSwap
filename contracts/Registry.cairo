@@ -13,6 +13,10 @@ from starkware.cairo.common.math import assert_not_zero, assert_not_equal
 func _pair(token0: felt, token1: felt) -> (pair: felt):
 end
 
+@storage_var
+func _fee_to() -> (address: felt):
+end
+
 #
 # Storage Ownable
 #
@@ -35,6 +39,7 @@ func constructor{
     # therefore, initial_owner parameter is included
     assert_not_zero(initial_owner)
     _owner.write(initial_owner)
+    _fee_to.write(0)
     return ()
 end
 
@@ -50,6 +55,26 @@ func get_pair_for{
     }(token0: felt, token1: felt) -> (pair: felt):
     let (pair) = _pair.read(token0, token1)
     return (pair)
+end
+
+@view
+func fee_to{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (address: felt):
+    let (address) = _fee_to.read()
+    return (address)
+end
+
+@view
+func owner{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (address: felt):
+    let (address) = _owner.read()
+    return (address)
 end
 
 #
@@ -71,6 +96,18 @@ func set_pair{
     assert existing_pair = 0
     _pair.write(token0, token1, pair)
     _pair.write(token1, token0, pair)
+    return ()
+end
+
+@external
+func update_fee_to{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(new_fee_to: felt):
+    _only_owner()
+    assert_not_zero(new_fee_to)
+    _fee_to.write(new_fee_to)
     return ()
 end
 

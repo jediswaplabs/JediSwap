@@ -16,7 +16,7 @@ const BURN_ADDRESS = 1
 
 
 #
-# Interface ERC20
+# Interfaces
 #
 @contract_interface
 namespace IERC20:
@@ -32,6 +32,12 @@ namespace IERC20:
             recipient: felt, 
             amount: Uint256
         ) -> (success: felt):
+    end
+end
+
+@contract_interface
+namespace IRegistry:
+    func fee_to() -> (address: felt):
     end
 end
 
@@ -88,15 +94,11 @@ func _klast() -> (res: Uint256):
 end
 
 @storage_var
-func _fee_to() -> (address: felt):
-end
-
-@storage_var
-func _fee_setter() -> (address: felt):
-end
-
-@storage_var
 func _locked() -> (res: felt):
+end
+
+@storage_var
+func _registry() -> (address: felt):
 end
 
 
@@ -114,7 +116,7 @@ func constructor{
         symbol: felt,
         token0: felt,
         token1: felt,
-        fee_setter: felt
+        registry: felt
     ):
     # get_caller_address() returns '0' in the constructor;
     # therefore, fee_setter parameter is included
@@ -128,9 +130,8 @@ func constructor{
     _token0.write(token0)
     assert_not_zero(token1)
     _token1.write(token1)
-    _fee_to.write(0)
-    assert_not_zero(fee_setter)
-    _fee_setter.write(fee_setter)
+    assert_not_zero(registry)
+    _registry.write(registry)
     return ()
 end
 
@@ -219,26 +220,6 @@ func token1{
         range_check_ptr
     }() -> (address: felt):
     let (address) = _token1.read()
-    return (address)
-end
-
-@view
-func fee_to{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (address: felt):
-    let (address) = _fee_to.read()
-    return (address)
-end
-
-@view
-func fee_setter{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (address: felt):
-    let (address) = _fee_setter.read()
     return (address)
 end
 
@@ -705,35 +686,6 @@ func sync{
     return ()
 end
 
-@external
-func update_fee_to{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(new_fee_to: felt):
-    let (fee_setter) = _fee_setter.read()
-    let (caller) = get_caller_address()
-    assert fee_setter = caller
-    assert_not_equal(new_fee_to, 0)
-    _fee_to.write(new_fee_to)
-    return ()
-end
-
-@external
-func update_fee_setter{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(new_fee_setter: felt):
-    let (fee_setter) = _fee_setter.read()
-    let (caller) = get_caller_address()
-    assert fee_setter = caller
-    assert_not_equal(new_fee_setter, 0)
-    _fee_setter.write(new_fee_setter)
-    return ()
-end
-
-
 #
 # Internals ERC20
 #
@@ -856,44 +808,66 @@ func _mint_protocol_fee{
         range_check_ptr
     }(reserve0: Uint256, reserve1: Uint256) -> (fee_on: felt):
     alloc_locals
-    let (local fee_to) = _fee_to.read()
+    let (local registry) = _registry.read()
+    let (local fee_to) = IRegistry.fee_to(contract_address=registry)
     let (local fee_on) =  is_not_zero(fee_to)
     
-    ## TODO when SQRT is available for Uint256
-    # let (local klast: Uint256) = _klast.read()
-    # let (local is_klast_equal_to_zero) =  uint256_eq(klast, Uint256(0, 0))
+    let (local klast: Uint256) = _klast.read()
+    let (local is_klast_equal_to_zero) =  uint256_eq(klast, Uint256(0, 0))
 
-    # if fee_on == 1:
-    #     if is_klast_equal_to_zero == 1:
-    #         let (reserve_mul_low: Uint256, reserve_mul_high: Uint256) = uint256_mul(reserve0, reserve1)
-    #         let (is_reserve_mul_high_equal_to_zero) =  uint256_eq(reserve_mul_high, Uint256(0, 0))
-    #         assert is_reserve_mul_high_equal_to_zero = 1
-    #         let (local rootk: Uint256) = uint256_sqrt(reserve_mul_low)  ## NOT AVAILABLE SQRT
-    #         let (local rootklast: Uint256) = uint256_sqrt(klast)  ## NOT AVAILABLE SQRT
-    #         let (is_rootk_greater_than_rootklast) = uint256_lt(rootklast, rootk)
-    #         if is_rootk_greater_than_rootklast == 1:
-    #             let (local rootkdiff: Uint256) = uint256_sub(rootk, rootklast)
-    #             let (local _total_supply: Uint256) = total_supply.read()
-    #             let (numerator_mul_low: Uint256, numerator_mul_high: Uint256) = uint256_mul(rootkdiff, _total_supply)
-    #             let (is_numerator_mul_high_equal_to_zero) =  uint256_eq(numerator_mul_high, Uint256(0, 0))
-    #             assert is_numerator_mul_high_equal_to_zero = 1
-    #             let (denominator_mul_low: Uint256, denominator_mul_high: Uint256) = uint256_mul(rootk, Uint256(5, 0))
-    #             let (is_denominator_mul_high_equal_to_zero) =  uint256_eq(denominator_mul_high, Uint256(0, 0))
-    #             assert is_denominator_mul_high_equal_to_zero = 1
-    #             let (local denominator: Uint256, is_overflow) = uint256_add(denominator_mul_low, rootklast)
-    #             assert (is_overflow) = 0
-    #             let (liquidity: Uint256, _) = uint256_unsigned_div_rem(numerator_mul_low, denominator)
-    #             let (is_liquidity_greater_than_zero) = uint256_lt(Uint256(0, 0), liquidity)
-    #             if is_liquidity_greater_than_zero == 1:
-    #                 _mint(fee_to, liquidity)
-    #             end
-    #         end
-    #     end
-    # else:
-    #     if is_klast_equal_to_zero == 1:
-    #         _klast.write(0)
-    #     end
-    # end
+    if fee_on == 1:
+        if is_klast_equal_to_zero == 1:
+            let (reserve_mul_low: Uint256, reserve_mul_high: Uint256) = uint256_mul(reserve0, reserve1)
+            let (is_reserve_mul_high_equal_to_zero) =  uint256_eq(reserve_mul_high, Uint256(0, 0))
+            assert is_reserve_mul_high_equal_to_zero = 1
+            let (local rootk: Uint256) = _uint256_sqrt(reserve_mul_low)
+            let (local rootklast: Uint256) = _uint256_sqrt(klast)
+            let (is_rootk_greater_than_rootklast) = uint256_lt(rootklast, rootk)
+            if is_rootk_greater_than_rootklast == 1:
+                let (local rootkdiff: Uint256) = uint256_sub(rootk, rootklast)
+                let (local _total_supply: Uint256) = total_supply.read()
+                let (numerator_mul_low: Uint256, numerator_mul_high: Uint256) = uint256_mul(rootkdiff, _total_supply)
+                let (is_numerator_mul_high_equal_to_zero) =  uint256_eq(numerator_mul_high, Uint256(0, 0))
+                assert is_numerator_mul_high_equal_to_zero = 1
+                let (denominator_mul_low: Uint256, denominator_mul_high: Uint256) = uint256_mul(rootk, Uint256(5, 0))
+                let (is_denominator_mul_high_equal_to_zero) =  uint256_eq(denominator_mul_high, Uint256(0, 0))
+                assert is_denominator_mul_high_equal_to_zero = 1
+                let (local denominator: Uint256, is_overflow) = uint256_add(denominator_mul_low, rootklast)
+                assert (is_overflow) = 0
+                let (liquidity: Uint256, _) = uint256_unsigned_div_rem(numerator_mul_low, denominator)
+                let (is_liquidity_greater_than_zero) = uint256_lt(Uint256(0, 0), liquidity)
+                if is_liquidity_greater_than_zero == 1:
+                    _mint(fee_to, liquidity)
+                    tempvar syscall_ptr = syscall_ptr
+                    tempvar pedersen_ptr = pedersen_ptr
+                    tempvar range_check_ptr = range_check_ptr
+                else:
+                    tempvar syscall_ptr = syscall_ptr
+                    tempvar pedersen_ptr = pedersen_ptr
+                    tempvar range_check_ptr = range_check_ptr
+                end
+            else:
+                tempvar syscall_ptr = syscall_ptr
+                tempvar pedersen_ptr = pedersen_ptr
+                tempvar range_check_ptr = range_check_ptr
+            end
+        else:
+            tempvar syscall_ptr = syscall_ptr
+            tempvar pedersen_ptr = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
+        end
+    else:
+        if is_klast_equal_to_zero == 1:
+            _klast.write(Uint256(0, 0))
+            tempvar syscall_ptr = syscall_ptr
+            tempvar pedersen_ptr = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
+        else:
+            tempvar syscall_ptr = syscall_ptr
+            tempvar pedersen_ptr = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
+        end
+    end
     return (fee_on)
 end
 
