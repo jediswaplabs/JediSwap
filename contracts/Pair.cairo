@@ -432,7 +432,7 @@ func mint{
     _update_reserves(balance0, balance1)
 
     if fee_on == 1:
-        let (klast: Uint256, mul_high: Uint256) = uint256_mul(reserve0, reserve1)
+        let (klast: Uint256, mul_high: Uint256) = uint256_mul(balance0, balance1)
         let (is_equal_to_zero) =  uint256_eq(mul_high, Uint256(0, 0))
         assert is_equal_to_zero = 1
         _klast.write(klast)
@@ -497,7 +497,7 @@ func burn{
     _update_reserves(final_balance0, final_balance1)
 
     if fee_on == 1:
-        let (klast: Uint256, mul_high: Uint256) = uint256_mul(reserve0, reserve1)
+        let (klast: Uint256, mul_high: Uint256) = uint256_mul(final_balance0, final_balance1)
         let (is_equal_to_zero) =  uint256_eq(mul_high, Uint256(0, 0))
         assert is_equal_to_zero = 1
         _klast.write(klast)
@@ -816,7 +816,7 @@ func _mint_protocol_fee{
     let (local is_klast_equal_to_zero) =  uint256_eq(klast, Uint256(0, 0))
 
     if fee_on == 1:
-        if is_klast_equal_to_zero == 1:
+        if is_klast_equal_to_zero == 0:
             let (reserve_mul_low: Uint256, reserve_mul_high: Uint256) = uint256_mul(reserve0, reserve1)
             let (is_reserve_mul_high_equal_to_zero) =  uint256_eq(reserve_mul_high, Uint256(0, 0))
             assert is_reserve_mul_high_equal_to_zero = 1
@@ -857,7 +857,7 @@ func _mint_protocol_fee{
             tempvar range_check_ptr = range_check_ptr
         end
     else:
-        if is_klast_equal_to_zero == 1:
+        if is_klast_equal_to_zero == 0:
             _klast.write(Uint256(0, 0))
             tempvar syscall_ptr = syscall_ptr
             tempvar pedersen_ptr = pedersen_ptr
