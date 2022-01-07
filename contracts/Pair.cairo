@@ -303,7 +303,14 @@ func approve{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(spender: felt, amount: Uint256) -> (success: felt):
+    alloc_locals
     let (caller) = get_caller_address()
+    let (current_allowance: Uint256) = allowances.read(caller, spender)
+    let (local mul_low: Uint256, local mul_high: Uint256) = uint256_mul(current_allowance, amount)
+    let (either_current_allowance_or_amount_is_0) =  uint256_eq(mul_low, Uint256(0, 0))
+    let (is_mul_high_0) =  uint256_eq(mul_high, Uint256(0, 0))
+    assert either_current_allowance_or_amount_is_0 = 1
+    assert is_mul_high_0 = 1
     _approve(caller, spender, amount)
 
     # Cairo equivalent to 'return (true)'
