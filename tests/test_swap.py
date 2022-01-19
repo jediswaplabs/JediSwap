@@ -1,5 +1,6 @@
 import pytest
 import asyncio
+from utils.events import get_event_data
 
 def uint(a):
     return(a, 0)
@@ -133,6 +134,9 @@ async def test_swap_exact_0_to_1(starknet, router, token_0, token_1, token_2, pa
     amounts = execution_info.result.response[1:]
     print(f"{amounts_len}, {amounts}")
 
+    event_data = get_event_data(execution_info, "Swap")
+    assert event_data
+
     execution_info = await token_0.balanceOf(user_2_account.contract_address).call()
     user_2_token_0_balance_final = execution_info.result.balance[0]
 
@@ -149,7 +153,7 @@ async def test_swap_exact_0_to_1(starknet, router, token_0, token_1, token_2, pa
     print(f"Expected amount for token_1: {expected_amount_1}")
 
     assert user_2_token_0_balance_initial - user_2_token_0_balance_final == amounts[0]
-    assert user_2_token_1_balance_final - user_2_token_1_balance_initial == amounts[-1]
+    assert user_2_token_1_balance_final - user_2_token_1_balance_initial == amounts[-2]
 
     # assert user_2_token_1_balance_final - user_2_token_1_balance_initial == expected_amount_1 * 997.0 / 1000.0
 
@@ -193,6 +197,9 @@ async def test_swap_0_to_exact_1(starknet, router, token_0, token_1, token_2, pa
     amounts = execution_info.result.response[1:]
     print(f"{amounts_len}, {amounts}")
 
+    event_data = get_event_data(execution_info, "Swap")
+    assert event_data
+
     execution_info = await token_0.balanceOf(user_2_account.contract_address).call()
     user_2_token_0_balance_final = execution_info.result.balance[0]
 
@@ -209,7 +216,7 @@ async def test_swap_0_to_exact_1(starknet, router, token_0, token_1, token_2, pa
     print(f"Expected input amount for token_0: {expected_amount_0}")
 
     assert user_2_token_0_balance_initial - user_2_token_0_balance_final == amounts[0]
-    assert user_2_token_1_balance_final - user_2_token_1_balance_initial == amounts[-1]
+    assert user_2_token_1_balance_final - user_2_token_1_balance_initial == amounts[-2]
 
     # assert user_2_token_1_balance_final - user_2_token_1_balance_initial == expected_amount_1 * 997.0 / 1000.0
 
@@ -260,6 +267,9 @@ async def test_swap_exact_0_to_2(starknet, router, token_0, token_1, token_2, pa
     amounts = execution_info.result.response[1:]
     print(f"{amounts_len}, {amounts}")
 
+    event_data = get_event_data(execution_info, "Swap")
+    assert event_data
+
     execution_info = await token_0.balanceOf(user_2_account.contract_address).call()
     user_2_token_0_balance_final = execution_info.result.balance[0]
 
@@ -282,4 +292,4 @@ async def test_swap_exact_0_to_2(starknet, router, token_0, token_1, token_2, pa
     print(f"Expected amount for token_2: {expected_amount_2}")
 
     assert user_2_token_0_balance_initial - user_2_token_0_balance_final == amounts[0]
-    assert user_2_token_2_balance_final - user_2_token_2_balance_initial == amounts[-1]
+    assert user_2_token_2_balance_final - user_2_token_2_balance_initial == amounts[-2]

@@ -1,13 +1,12 @@
 %lang starknet
-%builtins pedersen range_check
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.starknet.common.syscalls import get_caller_address, get_contract_address
+from starkware.starknet.common.syscalls import get_caller_address, get_contract_address, get_block_timestamp
 from starkware.cairo.common.math import assert_not_zero, assert_in_range, assert_le, assert_not_equal
-from starkware.cairo.common.math_cmp import is_not_zero
+from starkware.cairo.common.math_cmp import is_not_zero, is_le
 from starkware.cairo.common.pow import pow
 from starkware.cairo.common.uint256 import (
-    Uint256, uint256_add, uint256_sub, uint256_le, uint256_lt, uint256_check, uint256_eq, uint256_mul, uint256_unsigned_div_rem
+    Uint256, uint256_add, uint256_sub, uint256_le, uint256_lt, uint256_check, uint256_eq, uint256_sqrt, uint256_mul, uint256_unsigned_div_rem
 )
 from starkware.cairo.common.alloc import alloc
 
@@ -90,6 +89,26 @@ func _reserve1() -> (res: Uint256):
 end
 
 @storage_var
+func _reserve0_last() -> (res: Uint256):
+end
+
+@storage_var
+func _reserve1_last() -> (res: Uint256):
+end
+
+@storage_var
+func _block_timestamp_last() -> (ts: felt):
+end
+
+@storage_var
+func _price_0_cumulative_last() -> (res: Uint256):
+end
+
+@storage_var
+func _price_1_cumulative_last() -> (res: Uint256):
+end
+
+@storage_var
 func _klast() -> (res: Uint256):
 end
 
@@ -99,6 +118,36 @@ end
 
 @storage_var
 func _registry() -> (address: felt):
+end
+
+# An event emitted whenever token is transferred.
+@event
+func Transfer(from_address: felt, to_address: felt, amount: Uint256):
+end
+
+# An event emitted whenever allowances is updated
+@event
+func Approval(owner: felt, spender: felt, amount: Uint256):
+end
+
+# An event emitted whenever mint() is called.
+@event
+func Mint(sender: felt, amount0: Uint256, amount1: Uint256):
+end
+
+# An event emitted whenever burn() is called.
+@event
+func Burn(sender: felt, amount0: Uint256, amount1: Uint256, to: felt):
+end
+
+# An event emitted whenever swap() is called.
+@event
+func Swap(sender: felt, amount0In: Uint256, amount1In: Uint256, amount0Out: Uint256, amount1Out: Uint256, to: felt):
+end
+
+# An event emitted whenever _update() is called.
+@event
+func Sync(reserve0: Uint256, reserve1: Uint256):
 end
 
 
@@ -228,8 +277,48 @@ func get_reserves{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }() -> (reserve0: Uint256, reserve1: Uint256):
+    }() -> (reserve0: Uint256, reserve1: Uint256, block_timestamp_last: felt):
     return _get_reserves()
+end
+
+@view
+func reserve0_last{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (res: Uint256):
+    let (res) = _reserve0_last.read()
+    return (res)
+end
+
+@view
+func reserve1_last{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (res: Uint256):
+    let (res) = _reserve1_last.read()
+    return (res)
+end
+
+@view
+func price_0_cumulative_last{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (res: Uint256):
+    let (res) = _price_0_cumulative_last.read()
+    return (res)
+end
+
+@view
+func price_1_cumulative_last{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (res: Uint256):
+    let (res) = _price_1_cumulative_last.read()
+    return (res)
 end
 
 @view
@@ -239,16 +328,6 @@ func klast{
         range_check_ptr
     }() -> (res: Uint256):
     let (res) = _klast.read()
-    return (res)
-end
-
-@view
-func sqrt{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(x: Uint256) -> (res: Uint256):
-    let (res) = _uint256_sqrt(x)
     return (res)
 end
 
@@ -292,6 +371,7 @@ func transferFrom{
     # subtract allowance
     let (new_allowance: Uint256) = uint256_sub(caller_allowance, amount)
     allowances.write(sender, caller, new_allowance)
+    Approval.emit(owner=sender, spender=caller, amount=new_allowance)
 
     # Cairo equivalent to 'return (true)'
     return (1)
@@ -372,8 +452,7 @@ func mint{
     }(to: felt) -> (liquidity: Uint256):
     alloc_locals
     _check_and_lock()
-    let (local reserve0: Uint256, local reserve1: Uint256) = _get_reserves()
-    
+    let (local reserve0: Uint256, local reserve1: Uint256, _) = _get_reserves()
     let (self_address) = get_contract_address()
     let (token0) = _token0.read()
     let (local balance0: Uint256) = IERC20.balanceOf(contract_address=token0, account=self_address)
@@ -395,7 +474,7 @@ func mint{
         let (is_equal_to_zero) =  uint256_eq(mul_high, Uint256(0, 0))
         assert is_equal_to_zero = 1
 
-        let (mul_sqrt: Uint256) = _uint256_sqrt(mul_low)
+        let (mul_sqrt: Uint256) = uint256_sqrt(mul_low)
 
         # local mul_sqrt: Uint256
         # assert mul_sqrt = amount0
@@ -436,7 +515,7 @@ func mint{
 
     _mint(to, liquidity)
     
-    _update_reserves(balance0, balance1)
+    _update(balance0, balance1, reserve0, reserve1)
 
     if fee_on == 1:
         let (klast: Uint256, mul_high: Uint256) = uint256_mul(balance0, balance1)
@@ -451,6 +530,10 @@ func mint{
         tempvar pedersen_ptr = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
     end
+
+    let (caller) = get_caller_address()
+    
+    Mint.emit(sender=caller, amount0=amount0, amount1=amount1)
     
     _unlock()
     return (liquidity)
@@ -464,7 +547,7 @@ func burn{
     }(to: felt) -> (amount0: Uint256, amount1: Uint256):
     alloc_locals
     _check_and_lock()
-    let (local reserve0: Uint256, local reserve1: Uint256) = _get_reserves()
+    let (local reserve0: Uint256, local reserve1: Uint256, _) = _get_reserves()
     
     let (self_address) = get_contract_address()
     let (token0) = _token0.read()
@@ -501,7 +584,7 @@ func burn{
     let (local final_balance0: Uint256) = IERC20.balanceOf(contract_address=token0, account=self_address)
     let (local final_balance1: Uint256) = IERC20.balanceOf(contract_address=token1, account=self_address)
 
-    _update_reserves(final_balance0, final_balance1)
+    _update(final_balance0, final_balance1, reserve0, reserve1)
 
     if fee_on == 1:
         let (klast: Uint256, mul_high: Uint256) = uint256_mul(final_balance0, final_balance1)
@@ -517,6 +600,10 @@ func burn{
         tempvar range_check_ptr = range_check_ptr
     end
 
+    let (caller) = get_caller_address()
+    
+    Burn.emit(sender=caller, amount0=amount0, amount1=amount1, to=to)
+    
     _unlock()
     return (amount0, amount1)
 end
@@ -543,7 +630,7 @@ func swap{
     end
     assert sufficient_output_amount = 1
     
-    let (local reserve0: Uint256, local reserve1: Uint256) = _get_reserves()
+    let (local reserve0: Uint256, local reserve1: Uint256, _) = _get_reserves()
     let (is_amount0out_lesser_than_reserve0) = uint256_lt(amount0Out, reserve0)
     assert is_amount0out_lesser_than_reserve0 = 1
     let (is_amount1out_lesser_than_reserve0) = uint256_lt(amount1Out, reserve1)
@@ -637,7 +724,11 @@ func swap{
     let (is_balance_adjusted_mul_greater_than_equal_final_reserve_mul) = uint256_le(final_reserve_mul_low, balance_mul_low)
     assert is_balance_adjusted_mul_greater_than_equal_final_reserve_mul = 1
 
-    _update_reserves(balance0, balance1)
+    _update(balance0, balance1, reserve0, reserve1)
+
+    let (caller) = get_caller_address()
+    
+    Swap.emit(sender=caller, amount0In=amount0In, amount1In=amount1In, amount0Out=amount0Out, amount1Out=amount1Out, to=to)
     
     _unlock()
     
@@ -652,7 +743,7 @@ func skim{
     }(to: felt):
     alloc_locals
     _check_and_lock()
-    let (local reserve0: Uint256, local reserve1: Uint256) = _get_reserves()
+    let (local reserve0: Uint256, local reserve1: Uint256, _) = _get_reserves()
     
     let (self_address) = get_contract_address()
     let (token0) = _token0.read()
@@ -686,7 +777,10 @@ func sync{
     let (token1) = _token1.read()
     let (local balance1: Uint256) = IERC20.balanceOf(contract_address=token1, account=self_address)
 
-    _update_reserves(balance0, balance1)
+    let (local reserve0: Uint256) = _reserve0.read()
+    let (local reserve1: Uint256) = _reserve1.read()
+
+    _update(balance0, balance1, reserve0, reserve1)
 
     _unlock()
 
@@ -745,6 +839,8 @@ func _transfer{
     # overflow is not possible because sum is guaranteed by mint to be less than total supply
     let (new_recipient_balance, _: Uint256) = uint256_add(recipient_balance, amount)
     balances.write(recipient, new_recipient_balance)
+
+    Transfer.emit(from_address=sender, to_address=recipient, amount=amount)
     return ()
 end
 
@@ -757,6 +853,7 @@ func _approve{
     assert_not_zero(spender)
     uint256_check(amount)
     allowances.write(caller, spender, amount)
+    Approval.emit(owner=caller, spender=spender, amount=amount)
     return ()
 end
 
@@ -827,8 +924,8 @@ func _mint_protocol_fee{
             let (reserve_mul_low: Uint256, reserve_mul_high: Uint256) = uint256_mul(reserve0, reserve1)
             let (is_reserve_mul_high_equal_to_zero) =  uint256_eq(reserve_mul_high, Uint256(0, 0))
             assert is_reserve_mul_high_equal_to_zero = 1
-            let (local rootk: Uint256) = _uint256_sqrt(reserve_mul_low)
-            let (local rootklast: Uint256) = _uint256_sqrt(klast)
+            let (local rootk: Uint256) = uint256_sqrt(reserve_mul_low)
+            let (local rootklast: Uint256) = uint256_sqrt(klast)
             let (is_rootk_greater_than_rootklast) = uint256_lt(rootklast, rootk)
             if is_rootk_greater_than_rootklast == 1:
                 let (local rootkdiff: Uint256) = uint256_sub(rootk, rootklast)
@@ -882,68 +979,87 @@ func _get_reserves{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }() -> (reserve0: Uint256, reserve1: Uint256):
+    }() -> (reserve0: Uint256, reserve1: Uint256, block_timestamp_last: felt):
     let (reserve0) = _reserve0.read()
     let (reserve1) = _reserve1.read()
-    return (reserve0, reserve1)
+    let (block_timestamp_last) = _block_timestamp_last.read()
+    return (reserve0, reserve1, block_timestamp_last)
 end
 
-func _update_reserves{
+func _update{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(balance0: Uint256, balance1: Uint256):
-    _reserve0.write(balance0)
-    _reserve1.write(balance1)
-    return ()
-end
-
-func _uint256_sqrt{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(y: Uint256) -> (z: Uint256):
+    }(balance0: Uint256, balance1: Uint256, reserve0: Uint256, reserve1: Uint256):
     alloc_locals
-    uint256_check(y)
-    local z: Uint256
-    let (is_y_greater_than_3) = uint256_lt(Uint256(3, 0), y)
-    if is_y_greater_than_3 == 1:
-        let (y_div_2: Uint256, _) = uint256_unsigned_div_rem(y, Uint256(2, 0))
-        let (x: Uint256, is_overflow) = uint256_add(y_div_2, Uint256(1, 0))
-        assert (is_overflow) = 0
-        let (final_z: Uint256) = _build_sqrt(x, y, y)
-        assert z = final_z
-        tempvar syscall_ptr = syscall_ptr
-        tempvar pedersen_ptr = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    else:
-        let (is_y_equal_to_0) =  uint256_eq(y, Uint256(0, 0))
-        if is_y_equal_to_0 == 1:
-            assert z = Uint256(0, 0)
+    assert balance0.high = 0
+    assert balance1.high = 0
+    let (block_timestamp) = get_block_timestamp()
+    let (block_timestamp_last) = _block_timestamp_last.read()
+    let (is_block_timestamp_greater_than_equal_to_last) = is_le(block_timestamp_last, block_timestamp)
+    if is_block_timestamp_greater_than_equal_to_last == 1:
+        let (is_block_timestamp_not_equal_to_last) = is_not_zero(block_timestamp - block_timestamp_last)
+        if is_block_timestamp_not_equal_to_last == 1:
+            let (is_reserve0_equal_to_zero) = uint256_eq(reserve0, Uint256(0, 0)) 
+            if is_reserve0_equal_to_zero == 0:
+                let (is_reserve1_equal_to_zero) = uint256_eq(reserve1, Uint256(0, 0)) 
+                if is_reserve1_equal_to_zero == 0:
+                    let (price_0_cumulative_last) = _price_0_cumulative_last.read()
+                    let (reserve1by0: Uint256, _) = uint256_unsigned_div_rem(reserve1, reserve0)
+                    let (reserve1by0multime: Uint256, mul_high0: Uint256) = uint256_mul(reserve1by0, Uint256(block_timestamp - block_timestamp_last, 0))
+                    let (is_equal_to_zero0) =  uint256_eq(mul_high0, Uint256(0, 0))
+                    assert is_equal_to_zero0 = 1
+                    let (new_price_0_cumulative: Uint256, is_overflow0) = uint256_add(price_0_cumulative_last, reserve1by0multime)
+                    assert (is_overflow0) = 0
+                    _price_0_cumulative_last.write(new_price_0_cumulative)
+                    _reserve0_last.write(reserve0)
+                    
+                    let (price_1_cumulative_last) = _price_1_cumulative_last.read()
+                    let (reserve0by1: Uint256, _) = uint256_unsigned_div_rem(reserve0, reserve1)
+                    let (reserve0by1multime: Uint256, mul_high1: Uint256) = uint256_mul(reserve0by1, Uint256(block_timestamp - block_timestamp_last, 0))
+                    let (is_equal_to_zero1) =  uint256_eq(mul_high1, Uint256(0, 0))
+                    assert is_equal_to_zero1 = 1
+                    let (new_price_1_cumulative: Uint256, is_overflow1) = uint256_add(price_1_cumulative_last, reserve0by1multime)
+                    assert (is_overflow1) = 0
+                    _price_1_cumulative_last.write(new_price_1_cumulative)
+                    _reserve1_last.write(reserve1)
+                    
+                    tempvar syscall_ptr = syscall_ptr
+                    tempvar pedersen_ptr = pedersen_ptr
+                    tempvar range_check_ptr = range_check_ptr
+                else:
+                    tempvar syscall_ptr = syscall_ptr
+                    tempvar pedersen_ptr = pedersen_ptr
+                    tempvar range_check_ptr = range_check_ptr
+                end
+                tempvar syscall_ptr = syscall_ptr
+                tempvar pedersen_ptr = pedersen_ptr
+                tempvar range_check_ptr = range_check_ptr
+            else:
+                tempvar syscall_ptr = syscall_ptr
+                tempvar pedersen_ptr = pedersen_ptr
+                tempvar range_check_ptr = range_check_ptr
+            end
+            tempvar syscall_ptr = syscall_ptr
+            tempvar pedersen_ptr = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
         else:
-            assert z = Uint256(1, 0)
+            tempvar syscall_ptr = syscall_ptr
+            tempvar pedersen_ptr = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
         end
         tempvar syscall_ptr = syscall_ptr
         tempvar pedersen_ptr = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
-    end
-    return (z)
-end
-
-func _build_sqrt{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(x: Uint256, y: Uint256, z: Uint256) -> (res: Uint256):
-    alloc_locals
-    let (is_x_less_than_z) = uint256_lt(x, z)
-    if is_x_less_than_z == 1:
-        let (y_div_x: Uint256, _) = uint256_unsigned_div_rem(y, x)
-        let (temp_x_2: Uint256, is_overflow) = uint256_add(y_div_x, x)
-        assert (is_overflow) = 0
-        let (temp_x: Uint256, _) = uint256_unsigned_div_rem(temp_x_2, Uint256(2, 0))
-        return _build_sqrt(temp_x, y, x)
     else:
-        return (z)
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
     end
+    _reserve0.write(balance0)
+    _reserve1.write(balance1)
+    _block_timestamp_last.write(block_timestamp)
+
+    Sync.emit(reserve0=balance0, reserve1=balance1)
+    return ()
 end

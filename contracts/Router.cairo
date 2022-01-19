@@ -1,8 +1,7 @@
 %lang starknet
-%builtins pedersen range_check
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.starknet.common.syscalls import get_caller_address
+from starkware.starknet.common.syscalls import get_caller_address, get_block_timestamp
 from starkware.cairo.common.math import assert_le, assert_not_zero, assert_not_equal
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.uint256 import (Uint256, uint256_eq, uint256_le, uint256_lt, 
@@ -26,7 +25,7 @@ end
 @contract_interface
 namespace IPair:
     
-    func get_reserves() -> (reserve0: Uint256, reserve1: Uint256):
+    func get_reserves() -> (reserve0: Uint256, reserve1: Uint256, block_timestamp_last: felt):
     end
 
     func mint(to: felt) -> (liquidity: Uint256):
@@ -125,13 +124,11 @@ func get_amounts_out{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(amountIn: Uint256, path_len: felt, path: felt*) -> (amounts_len: felt, amounts: felt*):
+    }(amountIn: Uint256, path_len: felt, path: felt*) -> (amounts_len: felt, amounts: Uint256*):
     alloc_locals
     let (local registry) = _registry.read()
     let (local amounts: Uint256*) = _get_amounts_out(registry, amountIn, path_len, path)
-    let (local amounts_in_felt: felt*) = alloc()
-    let (amounts_in_felt_end: felt*) = _convert_uint256_array_to_felt_array(0, path_len, amounts, amounts_in_felt)
-    return (path_len, amounts_in_felt)
+    return (path_len, amounts)
 end
 
 @view
@@ -139,13 +136,11 @@ func get_amounts_in{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(amountOut: Uint256, path_len: felt, path: felt*) -> (amounts_len: felt, amounts: felt*):
+    }(amountOut: Uint256, path_len: felt, path: felt*) -> (amounts_len: felt, amounts: Uint256*):
     alloc_locals
     let (local registry) = _registry.read()
     let (local amounts: Uint256*) = _get_amounts_in(registry, amountOut, path_len, path)
-    let (local amounts_in_felt: felt*) = alloc()
-    let (amounts_in_felt_end: felt*) = _convert_uint256_array_to_felt_array(0, path_len, amounts, amounts_in_felt)
-    return (path_len, amounts_in_felt)
+    return (path_len, amounts)
 end
 
 #
@@ -210,7 +205,7 @@ func swap_exact_tokens_for_tokens{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(amountIn: Uint256, amountOutMin: Uint256, path_len: felt, path: felt*, 
-    to: felt, deadline: felt) -> (amounts_len: felt, amounts: felt*):
+    to: felt, deadline: felt) -> (amounts_len: felt, amounts: Uint256*):
     alloc_locals
     _ensure_deadline(deadline)
     let (local registry) = _registry.read()
@@ -221,9 +216,7 @@ func swap_exact_tokens_for_tokens{
     let (sender) = get_caller_address()
     IERC20.transferFrom(contract_address=[path], sender=sender, recipient=pair, amount=[amounts])
     _swap(0, path_len, amounts, path, to)
-    let (local amounts_in_felt: felt*) = alloc()
-    let (amounts_in_felt_end: felt*) = _convert_uint256_array_to_felt_array(0, path_len, amounts, amounts_in_felt)
-    return (path_len, amounts_in_felt)
+    return (path_len, amounts)
 end
 
 @external
@@ -232,7 +225,7 @@ func swap_tokens_for_exact_tokens{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(amountOut: Uint256, amountInMax: Uint256, path_len: felt, path: felt*, 
-    to: felt, deadline: felt) -> (amounts_len: felt, amounts: felt*):
+    to: felt, deadline: felt) -> (amounts_len: felt, amounts: Uint256*):
     alloc_locals
     _ensure_deadline(deadline)
     let (local registry) = _registry.read()
@@ -243,9 +236,7 @@ func swap_tokens_for_exact_tokens{
     let (sender) = get_caller_address()
     IERC20.transferFrom(contract_address=[path], sender=sender, recipient=pair, amount=[amounts])
     _swap(0, path_len, amounts, path, to)
-    let (local amounts_in_felt: felt*) = alloc()
-    let (amounts_in_felt_end: felt*) = _convert_uint256_array_to_felt_array(0, path_len, amounts, amounts_in_felt)
-    return (path_len, amounts_in_felt)
+    return (path_len, amounts)
 end
 
 #
@@ -257,7 +248,8 @@ func _ensure_deadline{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(deadline: felt):
-    # assert_le(timestamp, deadline) ## TODO, when timestamp is available, change this.
+    let (block_timestamp) = get_block_timestamp()
+    assert_le(block_timestamp, deadline)
     return ()
 end
 
@@ -336,19 +328,6 @@ func _swap{
     return _swap(current_index + 1, amounts_len, amounts + Uint256.SIZE, path + 1, _to)
 end
 
-func _convert_uint256_array_to_felt_array{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(current_index: felt, path_len: felt, amounts: Uint256*, amounts_in_felt: felt*) -> (amounts_in_felt: felt*):
-    alloc_locals
-    if current_index == path_len:
-        return (amounts_in_felt)
-    end
-    assert [amounts_in_felt] = [amounts].low
-    return _convert_uint256_array_to_felt_array(current_index + 1, path_len, amounts + Uint256.SIZE, amounts_in_felt + 1)
-end
-
 func _sort_tokens{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
@@ -390,7 +369,7 @@ func _get_reserves{
     alloc_locals
     let (local token0, _) = _sort_tokens(tokenA, tokenB)
     let (local pair) = _pair_for(registry, tokenA, tokenB)
-    let (local reserve0: Uint256, local reserve1: Uint256) = IPair.get_reserves(contract_address=pair)
+    let (local reserve0: Uint256, local reserve1: Uint256, _) = IPair.get_reserves(contract_address=pair)
     if tokenA == token0:
         return (reserve0, reserve1)
     else:

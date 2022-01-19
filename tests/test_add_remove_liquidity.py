@@ -1,6 +1,7 @@
 import pytest
 import asyncio
 import math
+from utils.events import get_event_data
 
 MINIMUM_LIQUIDITY = 1000
 BURN_ADDRESS = 1
@@ -9,7 +10,7 @@ def uint(a):
     return(a, 0)
 
 @pytest.mark.asyncio
-async def test_add_liquidity(starknet, router, pair, token_0, token_1, user_1, random_acc):
+async def test_add_remove_liquidity(starknet, router, pair, token_0, token_1, user_1, random_acc):
     user_1_signer, user_1_account = user_1
     random_signer, random_account = random_acc
     
@@ -53,6 +54,9 @@ async def test_add_liquidity(starknet, router, pair, token_0, token_1, user_1, r
     assert amountB == amount_token_1
     assert float(liquidity) == math.sqrt(amount_token_0 * amount_token_1) - MINIMUM_LIQUIDITY
 
+    event_data = get_event_data(execution_info, "Mint")
+    assert event_data
+
     sort_info = await router.sort_tokens(token_0.contract_address, token_1.contract_address).call()
     
     execution_info = await pair.get_reserves().call()
@@ -91,6 +95,9 @@ async def test_add_liquidity(starknet, router, pair, token_0, token_1, user_1, r
     amountB = execution_info.result.response[2]
     liquidity = execution_info.result.response[4]
     print(f"{amountA}, {amountB}, {liquidity}")
+
+    event_data = get_event_data(execution_info, "Mint")
+    assert event_data
 
     execution_info = await pair.get_reserves().call()
     if (sort_info.result.token0 == token_0.contract_address):
@@ -136,6 +143,9 @@ async def test_add_liquidity(starknet, router, pair, token_0, token_1, user_1, r
     amountA = execution_info.result.response[0]
     amountB = execution_info.result.response[2]
     print(f"{amountA}, {amountB}")
+
+    event_data = get_event_data(execution_info, "Burn")
+    assert event_data
 
     execution_info = await pair.balanceOf(user_1_account.contract_address).call()
     user_1_pair_balance = execution_info.result.balance[0]

@@ -1,5 +1,4 @@
 %lang starknet
-%builtins pedersen range_check
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address
@@ -32,6 +31,25 @@ end
 
 @storage_var
 func _owner() -> (address: felt):
+end
+
+@storage_var
+func _future_owner() -> (address: felt):
+end
+
+# An event emitted whenever initiate_ownership_transfer() is called.
+@event
+func owner_change_initiated(current_owner: felt, future_owner: felt):
+end
+
+# An event emitted whenever accept_ownership() is called.
+@event
+func owner_change_completed(current_owner: felt, future_owner: felt):
+end
+
+# An event emitted whenever set_pair() is called.
+@event
+func pair_added(token0: felt, token1: felt, pair: felt, total_pairs: felt):
 end
 
 #
@@ -122,6 +140,7 @@ func set_pair{
     let (num_pairs) = _num_pairs.read()
     _all_pairs.write(num_pairs, pair)
     _num_pairs.write(num_pairs + 1)
+    pair_added.emit(token0=token0, token1=token1, pair=pair, total_pairs=num_pairs + 1)
     return ()
 end
 
@@ -142,15 +161,32 @@ end
 #
 
 @external
-func transfer_ownership{
+func initiate_ownership_transfer{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(new_owner: felt) -> (new_owner: felt):
+    }(future_owner: felt) -> (future_owner: felt):
     _only_owner()
-    assert_not_zero(new_owner)
-    _owner.write(new_owner)
-    return (new_owner=new_owner)
+    let (current_owner) = _owner.read()
+    assert_not_zero(future_owner)
+    _future_owner.write(future_owner)
+    owner_change_initiated.emit(current_owner=current_owner, future_owner=future_owner)
+    return (future_owner=future_owner)
+end
+
+@external
+func accept_ownership{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }():
+    let (current_owner) = _owner.read()
+    let (future_owner) = _future_owner.read()
+    let (caller) = get_caller_address()
+    assert future_owner = caller
+    _owner.write(future_owner)
+    owner_change_completed.emit(current_owner=current_owner, future_owner=future_owner)
+    return ()
 end
 
 #
