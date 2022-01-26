@@ -3,7 +3,7 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address, get_block_timestamp
 from starkware.cairo.common.math import assert_le, assert_not_zero, assert_not_equal
-from starkware.cairo.common.math_cmp import is_le
+from starkware.cairo.common.math_cmp import is_le, is_le_felt
 from starkware.cairo.common.uint256 import (Uint256, uint256_eq, uint256_le, uint256_lt, 
     uint256_add, uint256_sub, uint256_mul, uint256_unsigned_div_rem)
 from starkware.cairo.common.alloc import alloc
@@ -337,7 +337,7 @@ func _sort_tokens{
     local token0
     local token1
     assert_not_equal(tokenA, tokenB)
-    let (is_tokenA_less_than_tokenB) = is_le(tokenA, tokenB)
+    let (is_tokenA_less_than_tokenB) = is_le_felt(tokenA, tokenB)
     if is_tokenA_less_than_tokenB == 1:
         assert token0 = tokenA
         assert token1 = tokenB
