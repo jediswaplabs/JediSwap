@@ -167,19 +167,19 @@ func constructor{
         token1: felt,
         registry: felt
     ):
-    # get_caller_address() returns '0' in the constructor;
-    # therefore, fee_setter parameter is included
-    assert_not_zero(name)
+    with_attr error_message("Pair::constructor::all arguments must be non zero"):
+        assert_not_zero(name)
+        assert_not_zero(symbol)
+        assert_not_zero(token0)
+        assert_not_zero(token1)
+        assert_not_zero(registry)
+    end
     _name.write(name)
-    assert_not_zero(symbol)
     _symbol.write(symbol)
     _decimals.write(18)
     _locked.write(0)
-    assert_not_zero(token0)
     _token0.write(token0)
-    assert_not_zero(token1)
     _token1.write(token1)
-    assert_not_zero(registry)
     _registry.write(registry)
     return ()
 end
@@ -364,7 +364,9 @@ func transferFrom{
 
     # validates amount <= caller_allowance and returns 1 if true   
     let (enough_balance) = uint256_le(amount, caller_allowance)
-    assert_not_zero(enough_balance)
+    with_attr error_message("Pair::transferFrom::amount exceeds allowance"):
+        assert_not_zero(enough_balance)
+    end
 
     _transfer(sender, recipient, amount)
 
@@ -389,7 +391,9 @@ func approve{
     let (local mul_low: Uint256, local mul_high: Uint256) = uint256_mul(current_allowance, amount)
     let (either_current_allowance_or_amount_is_0) =  uint256_eq(mul_low, Uint256(0, 0))
     let (is_mul_high_0) =  uint256_eq(mul_high, Uint256(0, 0))
-    assert either_current_allowance_or_amount_is_0 = 1
+    with_attr error_message("Pair::approve::Can only go from 0 to amount or amount to 0"):
+        assert either_current_allowance_or_amount_is_0 = 1
+    end
     assert is_mul_high_0 = 1
     _approve(caller, spender, amount)
 
@@ -432,7 +436,9 @@ func decreaseAllowance{
 
     # validates new_allowance < current_allowance and returns 1 if true   
     let (enough_allowance) = uint256_lt(new_allowance, current_allowance)
-    assert_not_zero(enough_allowance)
+    with_attr error_message("Pair::decreaseAllowance::New allowance is greater than current allowance"):
+        assert_not_zero(enough_allowance)
+    end
 
     _approve(caller, spender, new_allowance)
 
@@ -511,7 +517,9 @@ func mint{
     local pedersen_ptr: HashBuiltin* = pedersen_ptr
 
     let (is_liquidity_greater_than_zero) = uint256_lt(Uint256(0, 0), liquidity)
-    assert is_liquidity_greater_than_zero = 1
+    with_attr error_message("Pair::mint::insufficient liquidity minted"):
+        assert is_liquidity_greater_than_zero = 1
+    end
 
     _mint(to, liquidity)
     
@@ -567,14 +575,17 @@ func burn{
     assert is_equal_to_zero0 = 1
     let (local amount0: Uint256, _) = uint256_unsigned_div_rem(mul_low0, _total_supply)
     let (is_amount0_greater_than_zero) = uint256_lt(Uint256(0, 0), amount0)
-    assert is_amount0_greater_than_zero = 1
 
     let (mul_low1: Uint256, mul_high1: Uint256) = uint256_mul(liquidity, balance1)
     let (is_equal_to_zero1) =  uint256_eq(mul_high1, Uint256(0, 0))
     assert is_equal_to_zero1 = 1
     let (local amount1: Uint256, _) = uint256_unsigned_div_rem(mul_low1, _total_supply)
     let (is_amount1_greater_than_zero) = uint256_lt(Uint256(0, 0), amount1)
-    assert is_amount1_greater_than_zero = 1
+    
+    with_attr error_message("Pair::burn::insufficient liquidity burned"):
+        assert is_amount0_greater_than_zero = 1
+        assert is_amount1_greater_than_zero = 1
+    end
 
     _burn(self_address, liquidity)
 
@@ -628,19 +639,24 @@ func swap{
             assert sufficient_output_amount = 0
         end
     end
-    assert sufficient_output_amount = 1
+    with_attr error_message("Pair::swap::insufficient output amount"):
+        assert sufficient_output_amount = 1
+    end
     
     let (local reserve0: Uint256, local reserve1: Uint256, _) = _get_reserves()
     let (is_amount0out_lesser_than_reserve0) = uint256_lt(amount0Out, reserve0)
-    assert is_amount0out_lesser_than_reserve0 = 1
     let (is_amount1out_lesser_than_reserve0) = uint256_lt(amount1Out, reserve1)
-    assert is_amount1out_lesser_than_reserve0 = 1
+    with_attr error_message("Pair::swap::insufficient liquidity"):
+        assert is_amount0out_lesser_than_reserve0 = 1
+        assert is_amount1out_lesser_than_reserve0 = 1
+    end
 
     let (local token0) = _token0.read()
-    assert_not_equal(token0, 0)
-    
     let (local token1) = _token1.read()
-    assert_not_equal(token1, 0)
+    with_attr error_message("Pair::swap::invalid to"):
+        assert_not_equal(token0, to)
+        assert_not_equal(token1, to)
+    end
 
     let (self_address) = get_contract_address()
 
@@ -687,7 +703,9 @@ func swap{
             assert sufficient_input_amount = 0
         end
     end
-    assert sufficient_input_amount = 1
+    with_attr error_message("Pair::swap::insufficient input amount"):
+        assert sufficient_input_amount = 1
+    end
 
     let (local amount0In: Uint256) = uint256_sub(balance0, expected_balance0)
     let (local amount1In: Uint256) = uint256_sub(balance1, expected_balance1)
@@ -722,7 +740,9 @@ func swap{
     assert is_final_reserve_mul_high_equal_to_zero = 1
 
     let (is_balance_adjusted_mul_greater_than_equal_final_reserve_mul) = uint256_le(final_reserve_mul_low, balance_mul_low)
-    assert is_balance_adjusted_mul_greater_than_equal_final_reserve_mul = 1
+    with_attr error_message("Pair::swap::invariant K"):
+        assert is_balance_adjusted_mul_greater_than_equal_final_reserve_mul = 1
+    end
 
     _update(balance0, balance1, reserve0, reserve1)
 
@@ -797,7 +817,9 @@ func _mint{
         range_check_ptr
     }(recipient: felt, amount: Uint256):
     alloc_locals
-    assert_not_zero(recipient)
+    with_attr error_message("Pair::_mint::recipient can not be zero"):
+        assert_not_zero(recipient)
+    end
     uint256_check(amount)
 
     let (balance: Uint256) = balances.read(account=recipient)
@@ -820,15 +842,21 @@ func _transfer{
         range_check_ptr
     }(sender: felt, recipient: felt, amount: Uint256):
     alloc_locals
-    assert_not_zero(sender)
-    assert_not_zero(recipient)
+    with_attr error_message("Pair::_transfer::sender can not be zero"):
+        assert_not_zero(sender)
+    end
+    with_attr error_message("Pair::_transfer::recipient can not be zero"):
+        assert_not_zero(recipient)
+    end
     uint256_check(amount) # almost surely not needed, might remove after confirmation
 
     let (local sender_balance: Uint256) = balances.read(account=sender)
 
     # validates amount <= sender_balance and returns 1 if true
     let (enough_balance) = uint256_le(amount, sender_balance)
-    assert_not_zero(enough_balance)
+    with_attr error_message("Pair::_transfer::not enough balance for sender"):
+        assert_not_zero(enough_balance)
+    end
 
     # subtract from sender
     let (new_sender_balance: Uint256) = uint256_sub(sender_balance, amount)
@@ -849,8 +877,12 @@ func _approve{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(caller: felt, spender: felt, amount: Uint256):
-    assert_not_zero(caller)
-    assert_not_zero(spender)
+    with_attr error_message("Pair::_approve::caller can not be zero"):
+        assert_not_zero(caller)
+    end
+    with_attr error_message("Pair::_approve::spender can not be zero"):
+        assert_not_zero(spender)
+    end
     uint256_check(amount)
     allowances.write(caller, spender, amount)
     Approval.emit(owner=caller, spender=spender, amount=amount)
@@ -863,13 +895,17 @@ func _burn{
         range_check_ptr
     }(account: felt, amount: Uint256):
     alloc_locals
-    assert_not_zero(account)
+    with_attr error_message("Pair::_burn::account can not be zero"):
+        assert_not_zero(account)
+    end
     uint256_check(amount)
 
     let (balance: Uint256) = balances.read(account)
     # validates amount <= balance and returns 1 if true
     let (enough_balance) = uint256_le(amount, balance)
-    assert_not_zero(enough_balance)
+    with_attr error_message("Pair::_burn::not enough balance to burn"):
+        assert_not_zero(enough_balance)
+    end
     
     let (new_balance: Uint256) = uint256_sub(balance, amount)
     balances.write(account, new_balance)
@@ -890,7 +926,9 @@ func _check_and_lock{
         range_check_ptr
     }():
     let (locked) = _locked.read()
-    assert locked = 0
+    with_attr error_message("Pair::_check_and_lock::locked"):
+        assert locked = 0
+    end
     _locked.write(1)
     return ()
 end
@@ -901,7 +939,9 @@ func _unlock{
         range_check_ptr
     }():
     let (locked) = _locked.read()
-    assert locked = 1
+    with_attr error_message("Pair::_unlock::not locked"):
+        assert locked = 1
+    end
     _locked.write(0)
     return ()
 end
@@ -992,8 +1032,10 @@ func _update{
         range_check_ptr
     }(balance0: Uint256, balance1: Uint256, reserve0: Uint256, reserve1: Uint256):
     alloc_locals
-    assert balance0.high = 0
-    assert balance1.high = 0
+    with_attr error_message("Pair::_update::overflow"):
+        assert balance0.high = 0
+        assert balance1.high = 0
+    end
     let (block_timestamp) = get_block_timestamp()
     let (block_timestamp_last) = _block_timestamp_last.read()
     let (is_block_timestamp_greater_than_equal_to_last) = is_le(block_timestamp_last, block_timestamp)

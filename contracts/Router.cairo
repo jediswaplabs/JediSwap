@@ -64,7 +64,9 @@ func constructor{
     }(
         registry: felt
     ):
-    assert_not_zero(registry)
+    with_attr error_message("Router::constructor::registry can not be zero"):
+        assert_not_zero(registry)
+    end
     _registry.write(registry)
     return ()
 end
@@ -192,9 +194,13 @@ func remove_liquidity{
     end
     
     let (is_amountA_greater_than_equal_amountAMin) = uint256_le(amountAMin, amountA)
-    assert is_amountA_greater_than_equal_amountAMin = 1
+    with_attr error_message("Router::remove_liquidity::insufficient A amount"):
+        assert is_amountA_greater_than_equal_amountAMin = 1
+    end
     let (is_amountB_greater_than_equal_amountBMin) = uint256_le(amountBMin, amountB)
-    assert is_amountB_greater_than_equal_amountBMin = 1
+    with_attr error_message("Router::remove_liquidity::insufficient B amount"):
+        assert is_amountB_greater_than_equal_amountBMin = 1
+    end
     
     return (amountA, amountB)
 end
@@ -211,7 +217,9 @@ func swap_exact_tokens_for_tokens{
     let (local registry) = _registry.read()
     let (local amounts: Uint256*) = _get_amounts_out(registry, amountIn, path_len, path)
     let (is_amount_last_greater_than_equal_amountOutMin) = uint256_le(amountOutMin, [amounts + (path_len - 1) * Uint256.SIZE])
-    assert is_amount_last_greater_than_equal_amountOutMin = 1
+    with_attr error_message("Router::swap_exact_tokens_for_tokens::insufficient output amount"):
+        assert is_amount_last_greater_than_equal_amountOutMin = 1
+    end
     let (local pair) = _pair_for(registry, [path], [path + 1])
     let (sender) = get_caller_address()
     IERC20.transferFrom(contract_address=[path], sender=sender, recipient=pair, amount=[amounts])
@@ -231,7 +239,9 @@ func swap_tokens_for_exact_tokens{
     let (local registry) = _registry.read()
     let (local amounts: Uint256*) = _get_amounts_in(registry, amountOut, path_len, path)
     let (is_amount_first_less_than_equal_amountInMax) = uint256_le([amounts], amountInMax)
-    assert is_amount_first_less_than_equal_amountInMax = 1
+    with_attr error_message("Router::swap_tokens_for_exact_tokens::excessive input amount"):
+        assert is_amount_first_less_than_equal_amountInMax = 1
+    end
     let (local pair) = _pair_for(registry, [path], [path + 1])
     let (sender) = get_caller_address()
     IERC20.transferFrom(contract_address=[path], sender=sender, recipient=pair, amount=[amounts])
@@ -249,7 +259,9 @@ func _ensure_deadline{
         range_check_ptr
     }(deadline: felt):
     let (block_timestamp) = get_block_timestamp()
-    assert_le(block_timestamp, deadline)
+    with_attr error_message("Router::_ensure_deadline::expired"):
+        assert_le(block_timestamp, deadline)
+    end
     return ()
 end
 
@@ -262,7 +274,9 @@ func _add_liquidity{
     alloc_locals
     let (local registry) = _registry.read()
     let (local pair) = IRegistry.get_pair_for(contract_address=registry, token0=tokenA, token1=tokenB)
-    assert_not_zero(pair)  ## This will be changed when factory pattern is allowed and we can create pair on the fly
+    with_attr error_message("Router::_add_liquidity::pair does not exist"):
+        assert_not_zero(pair)  ## This will be changed when factory pattern is allowed and we can create pair on the fly
+    end
     let (local reserveA: Uint256, local reserveB: Uint256) = _get_reserves(registry, tokenA, tokenB)
     let (mul_low: Uint256, mul_high: Uint256) = uint256_mul(reserveA, reserveB)
     let (is_mul_high_equal_to_zero) =  uint256_eq(mul_high, Uint256(0, 0))
@@ -276,14 +290,18 @@ func _add_liquidity{
         let (is_amountBOptimal_less_than_equal_amountBDesired) = uint256_le(amountBOptimal, amountBDesired)
         if is_amountBOptimal_less_than_equal_amountBDesired == 1:
             let (is_amountBOptimal_greater_than_equal_amountBMin) = uint256_le(amountBMin, amountBOptimal)
-            assert is_amountBOptimal_greater_than_equal_amountBMin = 1
+            with_attr error_message("Router::_add_liquidity::insufficient B amount"):
+                assert is_amountBOptimal_greater_than_equal_amountBMin = 1
+            end
             return (amountADesired, amountBOptimal)
         else:
             let (local amountAOptimal: Uint256) = _quote(amountBDesired, reserveB, reserveA)
             let (is_amountAOptimal_less_than_equal_amountADesired) = uint256_le(amountAOptimal, amountADesired)
             assert is_amountAOptimal_less_than_equal_amountADesired = 1
             let (is_amountAOptimal_greater_than_equal_amountAMin) = uint256_le(amountAMin, amountAOptimal)
-            assert is_amountAOptimal_greater_than_equal_amountAMin = 1
+            with_attr error_message("Router::_add_liquidity::insufficient A amount"):
+                assert is_amountAOptimal_greater_than_equal_amountAMin = 1
+            end
             return (amountAOptimal, amountBDesired)
         end
     end
@@ -388,11 +406,15 @@ func _quote{
     }(amountA: Uint256, reserveA: Uint256, reserveB: Uint256) -> (amountB: Uint256):
     alloc_locals
     let (is_amountA_greater_than_zero) = uint256_lt(Uint256(0, 0), amountA)
-    assert is_amountA_greater_than_zero = 1
+    with_attr error_message("Router::_quote::insufficient amount"):
+        assert is_amountA_greater_than_zero = 1
+    end
     let (is_reserveA_greater_than_zero) = uint256_lt(Uint256(0, 0), reserveA)
-    assert is_reserveA_greater_than_zero = 1
     let (is_reserveB_greater_than_zero) = uint256_lt(Uint256(0, 0), reserveB)
-    assert is_reserveB_greater_than_zero = 1
+    with_attr error_message("Router::_quote::insufficient liquidity"):
+        assert is_reserveA_greater_than_zero = 1
+        assert is_reserveB_greater_than_zero = 1
+    end
 
     let (mul_low: Uint256, mul_high: Uint256) = uint256_mul(amountA, reserveB)
     let (is_equal_to_zero) =  uint256_eq(mul_high, Uint256(0, 0))
@@ -408,11 +430,15 @@ func _get_amount_out{
     }(amountIn: Uint256, reserveIn: Uint256, reserveOut: Uint256) -> (amountOut: Uint256):
     alloc_locals
     let (is_amountIn_greater_than_zero) = uint256_lt(Uint256(0, 0), amountIn)
-    assert is_amountIn_greater_than_zero = 1
+    with_attr error_message("Router::_get_amount_out::insufficient input amount"):
+        assert is_amountIn_greater_than_zero = 1
+    end
     let (is_reserveIn_greater_than_zero) = uint256_lt(Uint256(0, 0), reserveIn)
-    assert is_reserveIn_greater_than_zero = 1
     let (is_reserveOut_greater_than_zero) = uint256_lt(Uint256(0, 0), reserveOut)
-    assert is_reserveOut_greater_than_zero = 1
+    with_attr error_message("Router::_get_amount_out::insufficient liquidity"):
+        assert is_reserveIn_greater_than_zero = 1
+        assert is_reserveOut_greater_than_zero = 1
+    end
 
     let (mul_low_amountIn_fee: Uint256, mul_high_amountIn_fee: Uint256) = uint256_mul(amountIn, Uint256(997, 0))
     let (is_equal_to_zero_amountIn_fee) =  uint256_eq(mul_high_amountIn_fee, Uint256(0, 0))
@@ -438,11 +464,15 @@ func _get_amount_in{
     }(amountOut: Uint256, reserveIn: Uint256, reserveOut: Uint256) -> (amountIn: Uint256):
     alloc_locals
     let (is_amountOut_greater_than_zero) = uint256_lt(Uint256(0, 0), amountOut)
-    assert is_amountOut_greater_than_zero = 1
+    with_attr error_message("Router::_get_amount_in::insufficient output amount"):
+        assert is_amountOut_greater_than_zero = 1
+    end
     let (is_reserveIn_greater_than_zero) = uint256_lt(Uint256(0, 0), reserveIn)
-    assert is_reserveIn_greater_than_zero = 1
     let (is_reserveOut_greater_than_zero) = uint256_lt(Uint256(0, 0), reserveOut)
-    assert is_reserveOut_greater_than_zero = 1
+    with_attr error_message("Router::_get_amount_in::insufficient liquidity"):
+        assert is_reserveIn_greater_than_zero = 1
+        assert is_reserveOut_greater_than_zero = 1
+    end
 
     let (mul_low_numerator_0: Uint256, mul_high_numerator_0: Uint256) = uint256_mul(amountOut, reserveIn)
     let (is_equal_to_zero_numerator_0) =  uint256_eq(mul_high_numerator_0, Uint256(0, 0))
@@ -469,7 +499,9 @@ func _get_amounts_out{
         range_check_ptr
     }(registry: felt, amountIn: Uint256, path_len: felt, path: felt*) -> (amounts: Uint256*):
     alloc_locals
-    assert_le(2, path_len)
+    with_attr error_message("Router::_get_amounts_out::invalid path"):
+        assert_le(2, path_len)
+    end
     let (local amounts_start : Uint256*) = alloc()
     let (amounts_end: Uint256*) = _build_amounts_out(registry, amountIn, 0, path_len, path, amounts_start)
     
@@ -509,7 +541,9 @@ func _get_amounts_in{
         range_check_ptr
     }(registry: felt, amountOut: Uint256, path_len: felt, path: felt*) -> (amounts: Uint256*):
     alloc_locals
-    assert_le(2, path_len)
+    with_attr error_message("Router::_get_amounts_in::invalid path"):
+        assert_le(2, path_len)
+    end
     let (local amounts_start : Uint256*) = alloc()
     let (amounts_start_temp: Uint256*) = _build_amounts_in(registry, amountOut, path_len - 1, path_len, path + (path_len - 1), amounts_start + (path_len - 1) * Uint256.SIZE)
     

@@ -64,7 +64,9 @@ func constructor{
     }(initial_owner: felt):
     # get_caller_address() returns '0' in the constructor;
     # therefore, initial_owner parameter is included
-    assert_not_zero(initial_owner)
+    with_attr error_message("Registry::constructor::Initial Owner can not be zero"):
+        assert_not_zero(initial_owner)
+    end
     _owner.write(initial_owner)
     _fee_to.write(0)
     _num_pairs.write(0)
@@ -129,12 +131,18 @@ func set_pair{
         range_check_ptr
     }(token0: felt, token1: felt, pair: felt):
     _only_owner()
-    assert_not_zero(token0)
-    assert_not_zero(token1)
-    assert_not_zero(pair)
-    assert_not_equal(token0, token1)
+    with_attr error_message("Registry::set_pair::all arguments must be non zero"):
+        assert_not_zero(token0)
+        assert_not_zero(token1)
+        assert_not_zero(pair)
+    end
+    with_attr error_message("Registry::set_pair::token0 and token1 must be different"):
+        assert_not_equal(token0, token1)
+    end
     let (existing_pair) = _pair.read(token0, token1)
-    assert existing_pair = 0
+    with_attr error_message("Registry::set_pair::pair already exists for token0 and token1"):
+        assert existing_pair = 0
+    end
     _pair.write(token0, token1, pair)
     _pair.write(token1, token0, pair)
     let (num_pairs) = _num_pairs.read()
@@ -151,7 +159,9 @@ func update_fee_to{
         range_check_ptr
     }(new_fee_to: felt):
     _only_owner()
-    assert_not_zero(new_fee_to)
+    with_attr error_message("Registry::update_fee_to::New fee recipient can not be zero"):
+        assert_not_zero(new_fee_to)
+    end
     _fee_to.write(new_fee_to)
     return ()
 end
@@ -168,7 +178,9 @@ func initiate_ownership_transfer{
     }(future_owner: felt) -> (future_owner: felt):
     _only_owner()
     let (current_owner) = _owner.read()
-    assert_not_zero(future_owner)
+    with_attr error_message("Registry::initiate_ownership_transfer::New owner can not be zero"):
+        assert_not_zero(future_owner)
+    end
     _future_owner.write(future_owner)
     owner_change_initiated.emit(current_owner=current_owner, future_owner=future_owner)
     return (future_owner=future_owner)
@@ -183,7 +195,9 @@ func accept_ownership{
     let (current_owner) = _owner.read()
     let (future_owner) = _future_owner.read()
     let (caller) = get_caller_address()
-    assert future_owner = caller
+    with_attr error_message("Registry::accept_ownership::Only future owner can accept"):
+        assert future_owner = caller
+    end
     _owner.write(future_owner)
     owner_change_completed.emit(current_owner=current_owner, future_owner=future_owner)
     return ()
@@ -200,7 +214,9 @@ func _only_owner{
     }():
     let (owner) = _owner.read()
     let (caller) = get_caller_address()
-    assert owner = caller
+    with_attr error_message("Registry::_only_owner::Caller must be owner"):
+        assert owner = caller
+    end
     return ()
 end
 

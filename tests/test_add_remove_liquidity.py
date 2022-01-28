@@ -2,6 +2,7 @@ import pytest
 import asyncio
 import math
 from utils.events import get_event_data
+from utils.revert import assert_revert
 
 MINIMUM_LIQUIDITY = 1000
 BURN_ADDRESS = 1
@@ -9,8 +10,34 @@ BURN_ADDRESS = 1
 def uint(a):
     return(a, 0)
 
+# @pytest.mark.asyncio
+# async def test_add_liquidity_expired_deadline(router, token_0, token_1, user_1):
+#     user_1_signer, user_1_account = user_1
+    
+#     execution_info = await token_0.decimals().call()
+#     token_0_decimals = execution_info.result.decimals
+    
+#     execution_info = await token_1.decimals().call()
+#     token_1_decimals = execution_info.result.decimals
+
+#     amount_token_0 = 2 * (10 ** token_0_decimals)
+#     amount_token_1 = 4 * (10 ** token_1_decimals)
+    
+#     ## New pair with 0 liquidity
+#     print("Add liquidity to new pair")
+#     await assert_revert(user_1_signer.send_transaction(user_1_account, router.contract_address, 'add_liquidity', [
+#         token_0.contract_address, 
+#         token_1.contract_address, 
+#         *uint(amount_token_0), 
+#         *uint(amount_token_1), 
+#         *uint(0), 
+#         *uint(0), 
+#         user_1_account.contract_address, 
+#         0
+#     ]), "Router::_ensure_deadline::expired")
+
 @pytest.mark.asyncio
-async def test_add_remove_liquidity(starknet, router, pair, token_0, token_1, user_1, random_acc):
+async def test_add_remove_liquidity(router, pair, token_0, token_1, user_1, random_acc):
     user_1_signer, user_1_account = user_1
     random_signer, random_account = random_acc
     
