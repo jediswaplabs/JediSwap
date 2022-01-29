@@ -1,5 +1,9 @@
 %lang starknet
 
+# @title Jediswap Registry
+# @author Mesh Finance
+# @license MIT
+
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.math import assert_not_zero, assert_not_equal
@@ -9,18 +13,22 @@ from starkware.cairo.common.alloc import alloc
 # Storage
 #
 
+# @dev Total pairs in the registry
 @storage_var
 func _num_pairs() -> (num: felt):
 end
 
+# @dev Array of all pairs
 @storage_var
 func _all_pairs(index: felt) -> (address: felt):
 end
 
+# @dev Pair address for pair of `token0` and `token1`
 @storage_var
 func _pair(token0: felt, token1: felt) -> (pair: felt):
 end
 
+# @dev Address of fee recipient
 @storage_var
 func _fee_to() -> (address: felt):
 end
@@ -29,10 +37,12 @@ end
 # Storage Ownable
 #
 
+# @dev Address of the owner of the contract
 @storage_var
 func _owner() -> (address: felt):
 end
 
+# @dev Address of the future owner of the contract
 @storage_var
 func _future_owner() -> (address: felt):
 end
@@ -56,6 +66,8 @@ end
 # Constructor
 #
 
+# @notice Contract constructor
+# @param initial_owner Owner of this registry contract
 @constructor
 func constructor{
         syscall_ptr : felt*, 
@@ -77,6 +89,9 @@ end
 # Getters
 #
 
+# @notice Get all the pairs registered
+# @return all_pairs_len Length of `all_pairs` array
+# @return all_pairs Array of addresses of the registered pairs
 @view
 func get_all_pairs{
         syscall_ptr : felt*,
@@ -90,6 +105,10 @@ func get_all_pairs{
     return (num_pairs, all_pairs)
 end
 
+# @notice Get pair address for the pair of `token0` and `token1`
+# @param token0 Address of token0
+# @param token1 Address of token1
+# @return pair Address of the pair
 @view
 func get_pair_for{
         syscall_ptr : felt*,
@@ -100,6 +119,8 @@ func get_pair_for{
     return (pair)
 end
 
+# @notice Get fee recipient address
+# @return address
 @view
 func fee_to{
         syscall_ptr : felt*, 
@@ -110,6 +131,8 @@ func fee_to{
     return (address)
 end
 
+# @notice Get contract owner address
+# @return address
 @view
 func owner{
         syscall_ptr : felt*, 
@@ -124,6 +147,11 @@ end
 # Setters
 #
 
+# @notice Set address for `token0` and `token1` pair to `pair`
+# @dev Only owner can set 
+# @param token0 Address of token0
+# @param token1 Address of token1
+# @param pair Address of the pair
 @external
 func set_pair{
         syscall_ptr : felt*,
@@ -152,6 +180,9 @@ func set_pair{
     return ()
 end
 
+# @notice Change fee recipient to `new_fee_to`
+# @dev Only owner can change 
+# @param new_fee_to Address of new fee recipient
 @external
 func update_fee_to{
         syscall_ptr : felt*, 
@@ -170,6 +201,9 @@ end
 # Setters Ownable
 #
 
+# @notice Change ownership to `future_owner`
+# @dev Only owner can change. Needs to be accepted by future_owner using accept_ownership
+# @param future_owner Address of new owner
 @external
 func initiate_ownership_transfer{
         syscall_ptr : felt*, 
@@ -186,6 +220,8 @@ func initiate_ownership_transfer{
     return (future_owner=future_owner)
 end
 
+# @notice Change ownership to future_owner
+# @dev Only future_owner can accept. Needs to be initiated via initiate_ownership_transfer
 @external
 func accept_ownership{
         syscall_ptr : felt*, 

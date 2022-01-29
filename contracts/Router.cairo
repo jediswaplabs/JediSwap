@@ -1,5 +1,12 @@
 %lang starknet
 
+# @title Jediswap router for stateless execution of swaps
+# @author Mesh Finance
+# @license MIT
+# @dev Based on the Uniswap V2 Router
+#       https://github.com/Uniswap/v2-periphery/blob/master/contracts/UniswapV2Router02.sol
+
+
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address, get_block_timestamp
 from starkware.cairo.common.math import assert_le, assert_not_zero, assert_not_equal
@@ -48,6 +55,7 @@ end
 # Storage
 #
 
+# @dev Registry contract address
 @storage_var
 func _registry() -> (address: felt):
 end
@@ -56,6 +64,8 @@ end
 # Constructor
 #
 
+# @notice Contract constructor
+# @param registry Address of registry contract
 @constructor
 func constructor{
         syscall_ptr : felt*, 
@@ -75,6 +85,8 @@ end
 # Getters
 #
 
+# @notice Registry address
+# @return address
 @view
 func registry{
         syscall_ptr : felt*,
@@ -85,6 +97,11 @@ func registry{
     return (address)
 end
 
+# @notice Sort tokens `tokenA` and `tokenB` by address
+# @param tokenA Address of tokenA
+# @param tokenB Address of tokenB
+# @return token0 First token
+# @return token1 Second token
 @view
 func sort_tokens{
         syscall_ptr : felt*, 
@@ -94,6 +111,11 @@ func sort_tokens{
     return _sort_tokens(tokenA, tokenB)
 end
 
+# @notice Given some amount of an asset and pair reserves, returns an equivalent amount of the other asset
+# @param amountA Amount of tokenA
+# @param reserveA Reserves for tokenA
+# @param reserveB Reserves for tokenB
+# @return amountB Amount of tokenB
 @view
 func quote{
         syscall_ptr : felt*,
@@ -103,6 +125,11 @@ func quote{
     return _quote(amountA, reserveA, reserveB)
 end
 
+# @notice Given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset
+# @param amountIn Input Amount
+# @param reserveIn Reserves for input token
+# @param reserveOut Reserves for output token
+# @return amountOut Maximum output amount
 @view
 func get_amount_out{
         syscall_ptr : felt*,
@@ -112,6 +139,11 @@ func get_amount_out{
     return _get_amount_out(amountIn, reserveIn, reserveOut)
 end
 
+# @notice Given an output amount of an asset and pair reserves, returns a required input amount of the other asset
+# @param amountOut Output Amount
+# @param reserveIn Reserves for input token
+# @param reserveOut Reserves for output token
+# @return amountIn Required input amount
 @view
 func get_amount_in{
         syscall_ptr : felt*,
@@ -121,6 +153,12 @@ func get_amount_in{
     return _get_amount_in(amountOut, reserveIn, reserveOut)
 end
 
+# @notice Performs chained get_amount_out calculations on any number of pairs
+# @param amountIn Input Amount
+# @param path_len Length of path array
+# @param path Array of pair addresses through which swaps are chained
+# @return amounts_len Required output amount array's length
+# @return amounts Required output amount array
 @view
 func get_amounts_out{
         syscall_ptr : felt*,
@@ -133,6 +171,12 @@ func get_amounts_out{
     return (path_len, amounts)
 end
 
+# @notice Performs chained get_amount_in calculations on any number of pairs
+# @param amountOut Output Amount
+# @param path_len Length of path array
+# @param path Array of pair addresses through which swaps are chained
+# @return amounts_len Required input amount array's length
+# @return amounts Required input amount array
 @view
 func get_amounts_in{
         syscall_ptr : felt*,
@@ -149,6 +193,19 @@ end
 # Externals
 #
 
+# @notice Add liquidity to a pool
+# @dev `caller` should have already given the router an allowance of at least amountADesired/amountBDesired on tokenA/tokenB
+# @param tokenA Address of tokenA
+# @param tokenB Address of tokenB
+# @param amountADesired The amount of tokenA to add as liquidity
+# @param amountBDesired The amount of tokenB to add as liquidity
+# @param amountAMin Bounds the extent to which the B/A price can go up before the transaction reverts. Must be <= amountADesired
+# @param amountBMin Bounds the extent to which the A/B price can go up before the transaction reverts. Must be <= amountBDesired
+# @param to Recipient of liquidity tokens
+# @param deadline Timestamp after which the transaction will revert
+# @return amountA The amount of tokenA sent to the pool
+# @return amountB The amount of tokenB sent to the pool
+# @return liquidity The amount of liquidity tokens minted
 @external
 func add_liquidity{
         syscall_ptr : felt*, 
@@ -168,6 +225,18 @@ func add_liquidity{
     return (amountA, amountB, liquidity)
 end
 
+# @notice Remove liquidity from a pool
+# @dev `caller` should have already given the router an allowance of at least liquidity on the pool
+# @param tokenA Address of tokenA
+# @param tokenB Address of tokenB
+# @param tokenB Address of tokenB
+# @param liquidity The amount of liquidity tokens to remove
+# @param amountAMin The minimum amount of tokenA that must be received for the transaction not to revert
+# @param amountBMin The minimum amount of tokenB that must be received for the transaction not to revert
+# @param to Recipient of the underlying tokens
+# @param deadline Timestamp after which the transaction will revert
+# @return amountA The amount of tokenA received
+# @return amountB The amount of tokenA received
 @external
 func remove_liquidity{
         syscall_ptr : felt*, 
@@ -205,6 +274,16 @@ func remove_liquidity{
     return (amountA, amountB)
 end
 
+# @notice Swaps an exact amount of input tokens for as many output tokens as possible, along the route determined by the path
+# @dev `caller` should have already given the router an allowance of at least amountIn on the input token
+# @param amountIn The amount of input tokens to send
+# @param amountOutMin The minimum amount of output tokens that must be received for the transaction not to revert
+# @param path_len Length of path array
+# @param path Array of pair addresses through which swaps are chained
+# @param to Recipient of the output tokens
+# @param deadline Timestamp after which the transaction will revert
+# @return amounts_len Length of amounts array
+# @return amounts The input token amount and all subsequent output token amounts
 @external
 func swap_exact_tokens_for_tokens{
         syscall_ptr : felt*, 
@@ -227,6 +306,16 @@ func swap_exact_tokens_for_tokens{
     return (path_len, amounts)
 end
 
+# @notice Receive an exact amount of output tokens for as few input tokens as possible, along the route determined by the path
+# @dev `caller` should have already given the router an allowance of at least amountInMax on the input token
+# @param amountOut The amount of output tokens to receive
+# @param amountInMax The maximum amount of input tokens that can be required before the transaction reverts
+# @param path_len Length of path array
+# @param path Array of pair addresses through which swaps are chained
+# @param to Recipient of the output tokens
+# @param deadline Timestamp after which the transaction will revert
+# @return amounts_len Length of amounts array
+# @return amounts The input token amount and all subsequent output token amounts
 @external
 func swap_tokens_for_exact_tokens{
         syscall_ptr : felt*, 

@@ -1,5 +1,13 @@
 %lang starknet
 
+# @title Jediswap Pair
+# @author Mesh Finance
+# @license MIT
+# @notice Low level pair contract
+# @dev Based on the Uniswap V2 pair
+#       https://github.com/Uniswap/v2-core/blob/master/contracts/UniswapV2Pair.sol
+#      Also an ERC20 token
+
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address, get_contract_address, get_block_timestamp
 from starkware.cairo.common.math import assert_not_zero, assert_in_range, assert_le, assert_not_equal
@@ -9,6 +17,7 @@ from starkware.cairo.common.uint256 import (
     Uint256, uint256_add, uint256_sub, uint256_le, uint256_lt, uint256_check, uint256_eq, uint256_sqrt, uint256_mul, uint256_unsigned_div_rem
 )
 from starkware.cairo.common.alloc import alloc
+
 
 const MINIMUM_LIQUIDITY = 1000
 const BURN_ADDRESS = 1
@@ -44,26 +53,32 @@ end
 # Storage ERC20
 #
 
+# @dev Name of the token
 @storage_var
 func _name() -> (res: felt):
 end
 
+# @dev Symbol of the token
 @storage_var
 func _symbol() -> (res: felt):
 end
 
+# @dev Decimals of the token
 @storage_var
 func _decimals() -> (res: felt):
 end
 
+# @dev Total Supply of the token
 @storage_var
 func total_supply() -> (res: Uint256):
 end
 
+# @dev Balances of the token for each account
 @storage_var
 func balances(account: felt) -> (res: Uint256):
 end
 
+# @dev Allowances of the token for owner-spender pair 
 @storage_var
 func allowances(owner: felt, spender: felt) -> (res: Uint256):
 end
@@ -72,80 +87,82 @@ end
 # Storage Pair
 #
 
+# @dev token0 address
 @storage_var
 func _token0() -> (address: felt):
 end
 
+# @dev token1 address
 @storage_var
 func _token1() -> (address: felt):
 end
 
+# @dev reserve for token0
 @storage_var
 func _reserve0() -> (res: Uint256):
 end
 
+# @dev reserve for token1
 @storage_var
 func _reserve1() -> (res: Uint256):
 end
 
-@storage_var
-func _reserve0_last() -> (res: Uint256):
-end
-
-@storage_var
-func _reserve1_last() -> (res: Uint256):
-end
-
+# @dev block timestamp for last update
 @storage_var
 func _block_timestamp_last() -> (ts: felt):
 end
 
+# @dev cumulative price for token0 on last update
 @storage_var
 func _price_0_cumulative_last() -> (res: Uint256):
 end
 
+# @dev cumulative price for token1 on last update
 @storage_var
 func _price_1_cumulative_last() -> (res: Uint256):
 end
 
+# @dev reserve0 * reserve1, as of immediately after the most recent liquidity event
 @storage_var
 func _klast() -> (res: Uint256):
 end
 
+# @dev Boolean to check reentrancy
 @storage_var
 func _locked() -> (res: felt):
 end
 
+# @dev Registry contract address
 @storage_var
 func _registry() -> (address: felt):
 end
 
-# An event emitted whenever token is transferred.
+# @notice An event emitted whenever token is transferred.
 @event
 func Transfer(from_address: felt, to_address: felt, amount: Uint256):
 end
 
-# An event emitted whenever allowances is updated
+# @notice An event emitted whenever allowances is updated
 @event
 func Approval(owner: felt, spender: felt, amount: Uint256):
 end
 
-# An event emitted whenever mint() is called.
+# @notice An event emitted whenever mint() is called.
 @event
 func Mint(sender: felt, amount0: Uint256, amount1: Uint256):
 end
 
-# An event emitted whenever burn() is called.
+# @notice An event emitted whenever burn() is called.
 @event
 func Burn(sender: felt, amount0: Uint256, amount1: Uint256, to: felt):
 end
 
-# An event emitted whenever swap() is called.
+# @notice An event emitted whenever swap() is called.
 @event
 func Swap(sender: felt, amount0In: Uint256, amount1In: Uint256, amount0Out: Uint256, amount1Out: Uint256, to: felt):
 end
 
-# An event emitted whenever _update() is called.
+# @notice An event emitted whenever _update() is called.
 @event
 func Sync(reserve0: Uint256, reserve1: Uint256):
 end
@@ -155,6 +172,12 @@ end
 # Constructor
 #
 
+# @notice Contract constructor
+# @param name Name of the pair token
+# @param symbol Symbol of the pair token
+# @param token0 Address of token0
+# @param token1 Address of token1
+# @param registry Address of registry contract
 @constructor
 func constructor{
         syscall_ptr : felt*, 
@@ -188,6 +211,8 @@ end
 # Getters ERC20
 #
 
+# @notice Name of the token
+# @return name
 @view
 func name{
         syscall_ptr : felt*,
@@ -198,6 +223,8 @@ func name{
     return (name)
 end
 
+# @notice Symbol of the token
+# @return symbol
 @view
 func symbol{
         syscall_ptr : felt*,
@@ -208,6 +235,8 @@ func symbol{
     return (symbol)
 end
 
+# @notice Total Supply of the token
+# @return totalSupply
 @view
 func totalSupply{
         syscall_ptr : felt*, 
@@ -218,6 +247,8 @@ func totalSupply{
     return (totalSupply)
 end
 
+# @notice Decimals of the token
+# @return decimals
 @view
 func decimals{
         syscall_ptr : felt*, 
@@ -228,6 +259,9 @@ func decimals{
     return (decimals)
 end
 
+# @notice Balance of `account`
+# @param account Account address whose balance is fetched
+# @return balance Balance of `account`
 @view
 func balanceOf{
         syscall_ptr : felt*, 
@@ -238,6 +272,10 @@ func balanceOf{
     return (balance)
 end
 
+# @notice Allowance which `spender` can spend on behalf of `owner`
+# @param owner Account address whose tokens are spent
+# @param spender Account address which can spend the tokens
+# @return remaining
 @view
 func allowance{
         syscall_ptr : felt*, 
@@ -252,6 +290,8 @@ end
 # Getters Pair
 #
 
+# @notice token0 address
+# @return address
 @view
 func token0{
         syscall_ptr : felt*,
@@ -262,6 +302,8 @@ func token0{
     return (address)
 end
 
+# @notice token1 address
+# @return address
 @view
 func token1{
         syscall_ptr : felt*,
@@ -272,6 +314,10 @@ func token1{
     return (address)
 end
 
+# @notice Current reserves for tokens in the pair
+# @return reserve0 reserve for token0
+# @return reserve1 reserve for token1
+# @return block_timestamp_last block timestamp for last update
 @view
 func get_reserves{
         syscall_ptr : felt*, 
@@ -281,26 +327,8 @@ func get_reserves{
     return _get_reserves()
 end
 
-@view
-func reserve0_last{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (res: Uint256):
-    let (res) = _reserve0_last.read()
-    return (res)
-end
-
-@view
-func reserve1_last{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (res: Uint256):
-    let (res) = _reserve1_last.read()
-    return (res)
-end
-
+# @notice cumulative price for token0 on last update
+# @return res
 @view
 func price_0_cumulative_last{
         syscall_ptr : felt*, 
@@ -311,6 +339,8 @@ func price_0_cumulative_last{
     return (res)
 end
 
+# @notice cumulative price for token1 on last update
+# @return res
 @view
 func price_1_cumulative_last{
         syscall_ptr : felt*, 
@@ -321,6 +351,8 @@ func price_1_cumulative_last{
     return (res)
 end
 
+# @notice reserve0 * reserve1, as of immediately after the most recent liquidity event
+# @return res
 @view
 func klast{
         syscall_ptr : felt*, 
@@ -335,6 +367,10 @@ end
 # Externals ERC20
 #
 
+# @notice Transfer `amount` tokens from `caller` to `recipient`
+# @param recipient Account address to which tokens are transferred
+# @param amount Amount of tokens to transfer
+# @return success 0 or 1
 @external
 func transfer{
         syscall_ptr : felt*, 
@@ -348,6 +384,12 @@ func transfer{
     return (1)
 end
 
+# @notice Transfer `amount` tokens from `sender` to `recipient`
+# @dev Checks for allowance.
+# @param sender Account address from which tokens are transferred
+# @param recipient Account address to which tokens are transferred
+# @param amount Amount of tokens to transfer
+# @return success 0 or 1
 @external
 func transferFrom{
         syscall_ptr : felt*, 
@@ -379,6 +421,13 @@ func transferFrom{
     return (1)
 end
 
+# @notice Approve `spender` to transfer `amount` tokens on behalf of `caller`
+# @dev Approval may only be from zero -> nonzero or from nonzero -> zero in order
+#      to mitigate the potential race condition described here:
+#      https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+# @param spender The address which will spend the funds
+# @param amount The amount of tokens to be spent
+# @return success 0 or 1
 @external
 func approve{
         syscall_ptr : felt*, 
@@ -401,6 +450,10 @@ func approve{
     return (1)
 end
 
+# @notice Increase allowance of `spender` to transfer `added_value` more tokens on behalf of `caller`
+# @param spender The address which will spend the funds
+# @param added_value The increased amount of tokens to be spent
+# @return success 0 or 1
 @external
 func increaseAllowance{
         syscall_ptr : felt*, 
@@ -422,6 +475,10 @@ func increaseAllowance{
     return (1)
 end
 
+# @notice Decrease allowance of `spender` to transfer `subtracted_value` less tokens on behalf of `caller`
+# @param spender The address which will spend the funds
+# @param subtracted_value The decreased amount of tokens to be spent
+# @return success 0 or 1
 @external
 func decreaseAllowance{
         syscall_ptr : felt*, 
@@ -450,6 +507,10 @@ end
 # Externals Pair
 #
 
+# @notice Mint tokens and assign them to `to`
+# @dev This low-level function should be called from a contract which performs important safety checks
+# @param to The account that will receive the created tokens
+# @return liquidity New tokens created
 @external
 func mint{
         syscall_ptr : felt*, 
@@ -547,6 +608,11 @@ func mint{
     return (liquidity)
 end
 
+# @notice Burn tokens belonging to `to`
+# @dev This low-level function should be called from a contract which performs important safety checks
+# @param to The account that will receive the created tokens
+# @return amount0 Amount of token0 received
+# @return amount1 Amount of token1 received
 @external
 func burn{
         syscall_ptr : felt*, 
@@ -619,6 +685,11 @@ func burn{
     return (amount0, amount1)
 end
 
+# @notice Swaps from one token to another
+# @dev This low-level function should be called from a contract which performs important safety checks
+# @param amount0Out Amount of token0 received
+# @param amount1Out Amount of token1 received
+# @param to The account that will receive the tokens
 @external
 func swap{
         syscall_ptr : felt*, 
@@ -755,6 +826,8 @@ func swap{
     return ()
 end
 
+# @notice force balances to match reserves
+# @param to The account that will receive the balance tokens
 @external
 func skim{
         syscall_ptr : felt*, 
@@ -782,6 +855,7 @@ func skim{
     return ()
 end
 
+# @notice Force reserves to match balances
 @external
 func sync{
         syscall_ptr : felt*, 
@@ -920,6 +994,7 @@ end
 # Internals Pair
 #
 
+# @dev Check if the entry is not locked, and lock it
 func _check_and_lock{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
@@ -933,6 +1008,7 @@ func _check_and_lock{
     return ()
 end
 
+# @dev Unlock the entry
 func _unlock{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
@@ -946,6 +1022,7 @@ func _unlock{
     return ()
 end
 
+# @dev If fee is on, mint liquidity equivalent to 1/6th of the growth in sqrt(k)
 func _mint_protocol_fee{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
@@ -1026,6 +1103,7 @@ func _get_reserves{
     return (reserve0, reserve1, block_timestamp_last)
 end
 
+# @dev Update reserves and, on the first call per block, price accumulators
 func _update{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
@@ -1054,7 +1132,6 @@ func _update{
                     let (new_price_0_cumulative: Uint256, is_overflow0) = uint256_add(price_0_cumulative_last, reserve1by0multime)
                     assert (is_overflow0) = 0
                     _price_0_cumulative_last.write(new_price_0_cumulative)
-                    _reserve0_last.write(reserve0)
                     
                     let (price_1_cumulative_last) = _price_1_cumulative_last.read()
                     let (reserve0by1: Uint256, _) = uint256_unsigned_div_rem(reserve0, reserve1)
@@ -1064,7 +1141,6 @@ func _update{
                     let (new_price_1_cumulative: Uint256, is_overflow1) = uint256_add(price_1_cumulative_last, reserve0by1multime)
                     assert (is_overflow1) = 0
                     _price_1_cumulative_last.write(new_price_1_cumulative)
-                    _reserve1_last.write(reserve1)
                     
                     tempvar syscall_ptr = syscall_ptr
                     tempvar pedersen_ptr = pedersen_ptr
