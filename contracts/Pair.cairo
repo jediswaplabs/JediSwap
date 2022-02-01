@@ -98,6 +98,11 @@ end
 func _token1() -> (address: felt):
 end
 
+# @dev is stable pair? (0 or 1)
+@storage_var
+func _stable() -> (res: felt):
+end
+
 # @dev reserve for token0
 @storage_var
 func _reserve0() -> (res: Uint256):
@@ -113,14 +118,14 @@ end
 func _block_timestamp_last() -> (ts: felt):
 end
 
-# @dev cumulative price for token0 on last update
+# @dev cumulative reserve for token0 on last update
 @storage_var
-func _price_0_cumulative_last() -> (res: Uint256):
+func _reserve_0_cumulative_last() -> (res: Uint256):
 end
 
-# @dev cumulative price for token1 on last update
+# @dev cumulative reserve for token1 on last update
 @storage_var
-func _price_1_cumulative_last() -> (res: Uint256):
+func _reserve_1_cumulative_last() -> (res: Uint256):
 end
 
 # @dev reserve0 * reserve1, as of immediately after the most recent liquidity event
@@ -178,6 +183,7 @@ end
 # @param symbol Symbol of the pair token
 # @param token0 Address of token0
 # @param token1 Address of token1
+# @param stable 0 or 1 - is it a stable pair
 # @param registry Address of registry contract
 @constructor
 func constructor{
@@ -189,6 +195,7 @@ func constructor{
         symbol: felt,
         token0: felt,
         token1: felt,
+        stable: felt,
         registry: felt
     ):
     with_attr error_message("Pair::constructor::all arguments must be non zero"):
@@ -204,6 +211,7 @@ func constructor{
     _locked.write(0)
     _token0.write(token0)
     _token1.write(token1)
+    _stable.write(stable)
     _registry.write(registry)
     return ()
 end
@@ -315,6 +323,18 @@ func token1{
     return (address)
 end
 
+# @notice is stable pair? (0 or 1)
+# @return res 0 or 1
+@view
+func stable{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (res: felt):
+    let (res) = _stable.read()
+    return (res)
+end
+
 # @notice Current reserves for tokens in the pair
 # @return reserve0 reserve for token0
 # @return reserve1 reserve for token1
@@ -328,27 +348,27 @@ func get_reserves{
     return _get_reserves()
 end
 
-# @notice cumulative price for token0 on last update
+# @notice cumulative reserve for token0 on last update
 # @return res
 @view
-func price_0_cumulative_last{
+func reserve_0_cumulative_last{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }() -> (res: Uint256):
-    let (res) = _price_0_cumulative_last.read()
+    let (res) = _reserve_0_cumulative_last.read()
     return (res)
 end
 
-# @notice cumulative price for token1 on last update
+# @notice cumulative reserve for token1 on last update
 # @return res
 @view
-func price_1_cumulative_last{
+func reserve_1_cumulative_last{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }() -> (res: Uint256):
-    let (res) = _price_1_cumulative_last.read()
+    let (res) = _reserve_1_cumulative_last.read()
     return (res)
 end
 
@@ -579,8 +599,14 @@ func mint{
     _update(balance0, balance1, reserve0, reserve1)
 
     if fee_on == 1:
-        let (klast: Uint256) = uint256_checked_mul(balance0, balance1)
-        _klast.write(klast)
+        let (stable) = _stable.read()
+        if stable == 0:
+            let (klast_non_stable: Uint256) = uint256_checked_mul(balance0, balance1)
+            _klast.write(klast_non_stable)
+        else:
+            let (klast_stable: Uint256) = uint256_checked_add(balance0, balance1)
+            _klast.write(klast_stable)
+        end
         tempvar syscall_ptr = syscall_ptr
         tempvar pedersen_ptr = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
@@ -650,8 +676,14 @@ func burn{
     _update(final_balance0, final_balance1, reserve0, reserve1)
 
     if fee_on == 1:
-        let (klast: Uint256) = uint256_checked_mul(final_balance0, final_balance1)
-        _klast.write(klast)
+        let (stable) = _stable.read()
+        if stable == 0:
+            let (klast_non_stable: Uint256) = uint256_checked_mul(balance0, balance1)
+            _klast.write(klast_non_stable)
+        else:
+            let (klast_stable: Uint256) = uint256_checked_add(balance0, balance1)
+            _klast.write(klast_stable)
+        end
         tempvar syscall_ptr = syscall_ptr
         tempvar pedersen_ptr = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
@@ -761,7 +793,7 @@ func swap{
     with_attr error_message("Pair::swap::insufficient input amount"):
         assert sufficient_input_amount = 1
     end
-
+    
     let (local amount0In: Uint256) = uint256_checked_sub_le(balance0, expected_balance0)
     let (local amount1In: Uint256) = uint256_checked_sub_le(balance1, expected_balance1)
 
@@ -773,16 +805,31 @@ func swap{
     let (amount1In_mul_3: Uint256) = uint256_felt_checked_mul(amount1In, 3)
     let (local balance1Adjusted: Uint256) = uint256_checked_sub_lt(balance1_mul_1000, amount1In_mul_3)
 
-    let (balance0Adjusted_mul_balance1Adjusted: Uint256) = uint256_checked_mul(balance0Adjusted, balance1Adjusted)
+    let (stable) = _stable.read()
 
-    let (reserve0_mul_reserve1: Uint256) = uint256_checked_mul(reserve0, reserve1)
+    if stable == 0:
+        let (balance0Adjusted_mul_balance1Adjusted: Uint256) = uint256_checked_mul(balance0Adjusted, balance1Adjusted)
 
-    let (local multiplier) = pow(1000, 2)
-    let (reserve0_mul_reserve1_mul_multiplier: Uint256) = uint256_felt_checked_mul(reserve0_mul_reserve1, multiplier)
+        let (reserve0_mul_reserve1: Uint256) = uint256_checked_mul(reserve0, reserve1)
 
-    let (is_balance_adjusted_mul_greater_than_equal_final_reserve_mul) = uint256_le(reserve0_mul_reserve1_mul_multiplier, balance0Adjusted_mul_balance1Adjusted)
-    with_attr error_message("Pair::swap::invariant K"):
-        assert is_balance_adjusted_mul_greater_than_equal_final_reserve_mul = 1
+        let (multiplier) = pow(1000, 2)
+        let (reserve0_mul_reserve1_mul_multiplier: Uint256) = uint256_felt_checked_mul(reserve0_mul_reserve1, multiplier)
+
+        let (is_balance_adjusted_mul_greater_than_equal_final_reserve_mul) = uint256_le(reserve0_mul_reserve1_mul_multiplier, balance0Adjusted_mul_balance1Adjusted)
+        with_attr error_message("Pair::swap::invariant K"):
+            assert is_balance_adjusted_mul_greater_than_equal_final_reserve_mul = 1
+        end
+    else:
+        let (balance_sum: Uint256) = uint256_checked_add(balance0Adjusted, balance1Adjusted)
+
+        let (reserve_sum: Uint256) = uint256_checked_add(reserve0, reserve1)
+
+        let (reserve_sum_mul_1000: Uint256) = uint256_felt_checked_mul(reserve_sum, 1000)
+
+        let (is_balance_adjusted_sum_greater_than_equal_final_reserve_sum) = uint256_le(reserve_sum_mul_1000, balance_sum)
+        with_attr error_message("Pair::swap::invariant K"):
+            assert is_balance_adjusted_sum_greater_than_equal_final_reserve_sum = 1
+        end
     end
 
     _update(balance0, balance1, reserve0, reserve1)
@@ -1086,17 +1133,15 @@ func _update{
             if is_reserve0_equal_to_zero == 0:
                 let (is_reserve1_equal_to_zero) = uint256_eq(reserve1, Uint256(0, 0)) 
                 if is_reserve1_equal_to_zero == 0:
-                    let (price_0_cumulative_last) = _price_0_cumulative_last.read()
-                    let (reserve1by0: Uint256, _) = uint256_unsigned_div_rem(reserve1, reserve0)
-                    let (reserve1by0_mul_time: Uint256) = uint256_felt_checked_mul(reserve1by0, block_timestamp - block_timestamp_last)
-                    let (new_price_0_cumulative: Uint256) = uint256_checked_add(price_0_cumulative_last, reserve1by0_mul_time)
-                    _price_0_cumulative_last.write(new_price_0_cumulative)
+                    let (reserve_0_cumulative_last) = _reserve_0_cumulative_last.read()
+                    let (reserve0_mul_time: Uint256) = uint256_felt_checked_mul(reserve0, block_timestamp - block_timestamp_last)
+                    let (new_reserve_0_cumulative: Uint256) = uint256_checked_add(reserve_0_cumulative_last, reserve0_mul_time)
+                    _reserve_0_cumulative_last.write(new_reserve_0_cumulative)
                     
-                    let (price_1_cumulative_last) = _price_1_cumulative_last.read()
-                    let (reserve0by1: Uint256, _) = uint256_unsigned_div_rem(reserve0, reserve1)
-                    let (reserve0by1_mul_time: Uint256) = uint256_felt_checked_mul(reserve0by1, block_timestamp - block_timestamp_last)
-                    let (new_price_1_cumulative: Uint256) = uint256_checked_add(price_1_cumulative_last, reserve0by1_mul_time)
-                    _price_1_cumulative_last.write(new_price_1_cumulative)
+                    let (reserve_1_cumulative_last) = _reserve_1_cumulative_last.read()
+                    let (reserve1_mul_time: Uint256) = uint256_felt_checked_mul(reserve1, block_timestamp - block_timestamp_last)
+                    let (new_reserve_1_cumulative: Uint256) = uint256_checked_add(reserve_1_cumulative_last, reserve1_mul_time)
+                    _reserve_1_cumulative_last.write(new_reserve_1_cumulative)
                     
                     tempvar syscall_ptr = syscall_ptr
                     tempvar pedersen_ptr = pedersen_ptr

@@ -148,6 +148,7 @@ async def pair(starknet, deployer, pair_name, pair_symbol, token_0, token_1, rou
             pair_symbol,  # symbol
             execution_info.result.token0,   # token0
             execution_info.result.token1,   # token1
+            0,                              # stable
             registry.contract_address
         ]
     )
@@ -165,6 +166,7 @@ async def other_pair(starknet, deployer, pair_name, pair_symbol, token_1, token_
             pair_symbol,  # symbol
             execution_info.result.token0,   # token0
             execution_info.result.token1,   # token1
+            0,                              # stable
             registry.contract_address
         ]
     )
