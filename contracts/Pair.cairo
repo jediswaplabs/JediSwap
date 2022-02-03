@@ -14,9 +14,10 @@ from starkware.cairo.common.math import assert_not_zero, assert_in_range, assert
 from starkware.cairo.common.math_cmp import is_not_zero, is_le
 from starkware.cairo.common.pow import pow
 from starkware.cairo.common.uint256 import (
-    Uint256, uint256_add, uint256_sub, uint256_le, uint256_lt, uint256_check, uint256_eq, uint256_sqrt, uint256_mul, uint256_unsigned_div_rem
+    Uint256, uint256_le, uint256_lt, uint256_check, uint256_eq, uint256_sqrt, uint256_unsigned_div_rem
 )
 from starkware.cairo.common.alloc import alloc
+from contracts.utils.math import uint256_checked_add, uint256_checked_sub_lt, uint256_checked_sub_le, uint256_checked_mul, uint256_felt_checked_mul
 
 
 const MINIMUM_LIQUIDITY = 1000
@@ -413,7 +414,7 @@ func transferFrom{
     _transfer(sender, recipient, amount)
 
     # subtract allowance
-    let (new_allowance: Uint256) = uint256_sub(caller_allowance, amount)
+    let (new_allowance: Uint256) = uint256_checked_sub_le(caller_allowance, amount)
     allowances.write(sender, caller, new_allowance)
     Approval.emit(owner=sender, spender=caller, amount=new_allowance)
 
@@ -437,13 +438,11 @@ func approve{
     alloc_locals
     let (caller) = get_caller_address()
     let (current_allowance: Uint256) = allowances.read(caller, spender)
-    let (local mul_low: Uint256, local mul_high: Uint256) = uint256_mul(current_allowance, amount)
-    let (either_current_allowance_or_amount_is_0) =  uint256_eq(mul_low, Uint256(0, 0))
-    let (is_mul_high_0) =  uint256_eq(mul_high, Uint256(0, 0))
+    let (local current_allowance_mul_amount: Uint256) = uint256_checked_mul(current_allowance, amount)
+    let (either_current_allowance_or_amount_is_0) =  uint256_eq(current_allowance_mul_amount, Uint256(0, 0))
     with_attr error_message("Pair::approve::Can only go from 0 to amount or amount to 0"):
         assert either_current_allowance_or_amount_is_0 = 1
     end
-    assert is_mul_high_0 = 1
     _approve(caller, spender, amount)
 
     # Cairo equivalent to 'return (true)'
@@ -466,8 +465,7 @@ func increaseAllowance{
     let (local current_allowance: Uint256) = allowances.read(caller, spender)
 
     # add allowance
-    let (local new_allowance: Uint256, is_overflow) = uint256_add(current_allowance, added_value)
-    assert (is_overflow) = 0
+    let (local new_allowance: Uint256) = uint256_checked_add(current_allowance, added_value)
 
     _approve(caller, spender, new_allowance)
 
@@ -489,7 +487,7 @@ func decreaseAllowance{
     uint256_check(subtracted_value)
     let (local caller) = get_caller_address()
     let (local current_allowance: Uint256) = allowances.read(owner=caller, spender=spender)
-    let (local new_allowance: Uint256) = uint256_sub(current_allowance, subtracted_value)
+    let (local new_allowance: Uint256) = uint256_checked_sub_le(current_allowance, subtracted_value)
 
     # validates new_allowance < current_allowance and returns 1 if true   
     let (enough_allowance) = uint256_lt(new_allowance, current_allowance)
@@ -526,8 +524,8 @@ func mint{
     let (token1) = _token1.read()
     let (local balance1: Uint256) = IERC20.balanceOf(contract_address=token1, account=self_address)
     
-    let (local amount0: Uint256) = uint256_sub(balance0, reserve0)
-    let (local amount1: Uint256) = uint256_sub(balance1, reserve1)
+    let (local amount0: Uint256) = uint256_checked_sub_lt(balance0, reserve0)
+    let (local amount1: Uint256) = uint256_checked_sub_lt(balance1, reserve1)
 
     let (fee_on) = _mint_protocol_fee(reserve0, reserve1)
 
@@ -537,31 +535,25 @@ func mint{
     local liquidity: Uint256
 
     if is_total_supply_equal_to_zero == 1:
-        let (mul_low: Uint256, mul_high: Uint256) = uint256_mul(amount0, amount1)
-        let (is_equal_to_zero) =  uint256_eq(mul_high, Uint256(0, 0))
-        assert is_equal_to_zero = 1
+        let (amount0_mul_amount1: Uint256) = uint256_checked_mul(amount0, amount1)
 
-        let (mul_sqrt: Uint256) = uint256_sqrt(mul_low)
+        let (mul_sqrt: Uint256) = uint256_sqrt(amount0_mul_amount1)
 
         # local mul_sqrt: Uint256
         # assert mul_sqrt = amount0
 
-        let (initial_liquidity: Uint256) = uint256_sub(mul_sqrt, Uint256(MINIMUM_LIQUIDITY, 0))
+        let (initial_liquidity: Uint256) = uint256_checked_sub_lt(mul_sqrt, Uint256(MINIMUM_LIQUIDITY, 0))
         assert liquidity = initial_liquidity
         _mint(BURN_ADDRESS, Uint256(MINIMUM_LIQUIDITY, 0))
         tempvar syscall_ptr = syscall_ptr
         tempvar pedersen_ptr = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
     else:
-        let (mul_low0: Uint256, mul_high0: Uint256) = uint256_mul(amount0, _total_supply)
-        let (is_equal_to_zero0) =  uint256_eq(mul_high0, Uint256(0, 0))
-        assert is_equal_to_zero0 = 1
-        let (liquidity0: Uint256, _) = uint256_unsigned_div_rem(mul_low0, reserve0)
+        let (amount0_mul_total_supply: Uint256) = uint256_checked_mul(amount0, _total_supply)
+        let (liquidity0: Uint256, _) = uint256_unsigned_div_rem(amount0_mul_total_supply, reserve0)
 
-        let (mul_low1: Uint256, mul_high1: Uint256) = uint256_mul(amount1, _total_supply)
-        let (is_equal_to_zero1) =  uint256_eq(mul_high1, Uint256(0, 0))
-        assert is_equal_to_zero1 = 1
-        let (liquidity1: Uint256, _) = uint256_unsigned_div_rem(mul_low1, reserve1)
+        let (amount1_mul_total_supply: Uint256) = uint256_checked_mul(amount1, _total_supply)
+        let (liquidity1: Uint256, _) = uint256_unsigned_div_rem(amount1_mul_total_supply, reserve1)
 
         let (is_liquidity0_less_than_liquidity1) = uint256_lt(liquidity0, liquidity1)
         if is_liquidity0_less_than_liquidity1 == 1:
@@ -587,9 +579,7 @@ func mint{
     _update(balance0, balance1, reserve0, reserve1)
 
     if fee_on == 1:
-        let (klast: Uint256, mul_high: Uint256) = uint256_mul(balance0, balance1)
-        let (is_equal_to_zero) =  uint256_eq(mul_high, Uint256(0, 0))
-        assert is_equal_to_zero = 1
+        let (klast: Uint256) = uint256_checked_mul(balance0, balance1)
         _klast.write(klast)
         tempvar syscall_ptr = syscall_ptr
         tempvar pedersen_ptr = pedersen_ptr
@@ -636,16 +626,12 @@ func burn{
     let (local _total_supply: Uint256) = total_supply.read()
     let (is_total_supply_equal_to_zero) =  uint256_eq(_total_supply, Uint256(0, 0))
 
-    let (mul_low0: Uint256, mul_high0: Uint256) = uint256_mul(liquidity, balance0)
-    let (is_equal_to_zero0) =  uint256_eq(mul_high0, Uint256(0, 0))
-    assert is_equal_to_zero0 = 1
-    let (local amount0: Uint256, _) = uint256_unsigned_div_rem(mul_low0, _total_supply)
+    let (liquidity_mul_balance0: Uint256) = uint256_checked_mul(liquidity, balance0)
+    let (local amount0: Uint256, _) = uint256_unsigned_div_rem(liquidity_mul_balance0, _total_supply)
     let (is_amount0_greater_than_zero) = uint256_lt(Uint256(0, 0), amount0)
 
-    let (mul_low1: Uint256, mul_high1: Uint256) = uint256_mul(liquidity, balance1)
-    let (is_equal_to_zero1) =  uint256_eq(mul_high1, Uint256(0, 0))
-    assert is_equal_to_zero1 = 1
-    let (local amount1: Uint256, _) = uint256_unsigned_div_rem(mul_low1, _total_supply)
+    let (liquidity_mul_balance1: Uint256) = uint256_checked_mul(liquidity, balance1)
+    let (local amount1: Uint256, _) = uint256_unsigned_div_rem(liquidity_mul_balance1, _total_supply)
     let (is_amount1_greater_than_zero) = uint256_lt(Uint256(0, 0), amount1)
     
     with_attr error_message("Pair::burn::insufficient liquidity burned"):
@@ -664,9 +650,7 @@ func burn{
     _update(final_balance0, final_balance1, reserve0, reserve1)
 
     if fee_on == 1:
-        let (klast: Uint256, mul_high: Uint256) = uint256_mul(final_balance0, final_balance1)
-        let (is_equal_to_zero) =  uint256_eq(mul_high, Uint256(0, 0))
-        assert is_equal_to_zero = 1
+        let (klast: Uint256) = uint256_checked_mul(final_balance0, final_balance1)
         _klast.write(klast)
         tempvar syscall_ptr = syscall_ptr
         tempvar pedersen_ptr = pedersen_ptr
@@ -759,8 +743,8 @@ func swap{
     let (local balance0: Uint256) = IERC20.balanceOf(contract_address=token0, account=self_address)
     let (local balance1: Uint256) = IERC20.balanceOf(contract_address=token1, account=self_address)
 
-    let (local expected_balance0: Uint256) = uint256_sub(reserve0, amount0Out)
-    let (local expected_balance1: Uint256) = uint256_sub(reserve1, amount1Out)
+    let (local expected_balance0: Uint256) = uint256_checked_sub_le(reserve0, amount0Out)
+    let (local expected_balance1: Uint256) = uint256_checked_sub_le(reserve1, amount1Out)
     
     local sufficient_input_amount
     let (local is_balance0_greater_than_expected_balance0) = uint256_lt(expected_balance0, balance0)
@@ -778,39 +762,25 @@ func swap{
         assert sufficient_input_amount = 1
     end
 
-    let (local amount0In: Uint256) = uint256_sub(balance0, expected_balance0)
-    let (local amount1In: Uint256) = uint256_sub(balance1, expected_balance1)
+    let (local amount0In: Uint256) = uint256_checked_sub_le(balance0, expected_balance0)
+    let (local amount1In: Uint256) = uint256_checked_sub_le(balance1, expected_balance1)
 
-    let (mul_low00: Uint256, mul_high00: Uint256) = uint256_mul(balance0, Uint256(1000, 0))
-    let (is_equal_to_zero00) =  uint256_eq(mul_high00, Uint256(0, 0))
-    assert is_equal_to_zero00 = 1
-    let (mul_low01: Uint256, mul_high01: Uint256) = uint256_mul(amount0In, Uint256(3, 0))
-    let (is_equal_to_zero01) =  uint256_eq(mul_high01, Uint256(0, 0))
-    assert is_equal_to_zero01 = 1
-    let (local balance0Adjusted: Uint256) = uint256_sub(mul_low00, mul_low01)
+    let (balance0_mul_1000: Uint256) = uint256_felt_checked_mul(balance0, 1000)
+    let (amount0In_mul_3: Uint256) = uint256_felt_checked_mul(amount0In, 3)
+    let (local balance0Adjusted: Uint256) = uint256_checked_sub_lt(balance0_mul_1000, amount0In_mul_3)
 
-    let (mul_low10: Uint256, mul_high10: Uint256) = uint256_mul(balance1, Uint256(1000, 0))
-    let (is_equal_to_zero10) =  uint256_eq(mul_high10, Uint256(0, 0))
-    assert is_equal_to_zero10 = 1
-    let (mul_low11: Uint256, mul_high11: Uint256) = uint256_mul(amount1In, Uint256(3, 0))
-    let (is_equal_to_zero11) =  uint256_eq(mul_high11, Uint256(0, 0))
-    assert is_equal_to_zero11 = 1
-    let (local balance1Adjusted: Uint256) = uint256_sub(mul_low10, mul_low11)
+    let (balance1_mul_1000: Uint256) = uint256_felt_checked_mul(balance1, 1000)
+    let (amount1In_mul_3: Uint256) = uint256_felt_checked_mul(amount1In, 3)
+    let (local balance1Adjusted: Uint256) = uint256_checked_sub_lt(balance1_mul_1000, amount1In_mul_3)
 
-    let (balance_mul_low: Uint256, balance_mul_high: Uint256) = uint256_mul(balance0Adjusted, balance1Adjusted)
-    let (is_balance_mul_high_equal_to_zero) =  uint256_eq(balance_mul_high, Uint256(0, 0))
-    assert is_balance_mul_high_equal_to_zero = 1
+    let (balance0Adjusted_mul_balance1Adjusted: Uint256) = uint256_checked_mul(balance0Adjusted, balance1Adjusted)
 
-    let (reserve_mul_low: Uint256, reserve_mul_high: Uint256) = uint256_mul(reserve0, reserve1)
-    let (is_reserve_mul_high_equal_to_zero) =  uint256_eq(reserve_mul_high, Uint256(0, 0))
-    assert is_reserve_mul_high_equal_to_zero = 1
+    let (reserve0_mul_reserve1: Uint256) = uint256_checked_mul(reserve0, reserve1)
 
     let (local multiplier) = pow(1000, 2)
-    let (final_reserve_mul_low: Uint256, final_reserve_mul_high: Uint256) = uint256_mul(reserve_mul_low, Uint256(multiplier, 0))
-    let (is_final_reserve_mul_high_equal_to_zero) =  uint256_eq(final_reserve_mul_high, Uint256(0, 0))
-    assert is_final_reserve_mul_high_equal_to_zero = 1
+    let (reserve0_mul_reserve1_mul_multiplier: Uint256) = uint256_felt_checked_mul(reserve0_mul_reserve1, multiplier)
 
-    let (is_balance_adjusted_mul_greater_than_equal_final_reserve_mul) = uint256_le(final_reserve_mul_low, balance_mul_low)
+    let (is_balance_adjusted_mul_greater_than_equal_final_reserve_mul) = uint256_le(reserve0_mul_reserve1_mul_multiplier, balance0Adjusted_mul_balance1Adjusted)
     with_attr error_message("Pair::swap::invariant K"):
         assert is_balance_adjusted_mul_greater_than_equal_final_reserve_mul = 1
     end
@@ -844,8 +814,8 @@ func skim{
     let (token1) = _token1.read()
     let (local balance1: Uint256) = IERC20.balanceOf(contract_address=token1, account=self_address)
 
-    let (local amount0: Uint256) = uint256_sub(balance0, reserve0)
-    let (local amount1: Uint256) = uint256_sub(balance1, reserve1)
+    let (local amount0: Uint256) = uint256_checked_sub_lt(balance0, reserve0)
+    let (local amount1: Uint256) = uint256_checked_sub_lt(balance1, reserve1)
 
     IERC20.transfer(contract_address=token0, recipient=to, amount=amount0)
     IERC20.transfer(contract_address=token1, recipient=to, amount=amount1)
@@ -899,12 +869,11 @@ func _mint{
     let (balance: Uint256) = balances.read(account=recipient)
     # overflow is not possible because sum is guaranteed to be less than total supply
     # which we check for overflow below
-    let (new_balance, _: Uint256) = uint256_add(balance, amount)
+    let (new_balance: Uint256) = uint256_checked_add(balance, amount)
     balances.write(recipient, new_balance)
 
     let (local supply: Uint256) = total_supply.read()
-    let (local new_supply: Uint256, is_overflow) = uint256_add(supply, amount)
-    assert (is_overflow) = 0
+    let (local new_supply: Uint256) = uint256_checked_add(supply, amount)
 
     total_supply.write(new_supply)
     return ()
@@ -933,13 +902,13 @@ func _transfer{
     end
 
     # subtract from sender
-    let (new_sender_balance: Uint256) = uint256_sub(sender_balance, amount)
+    let (new_sender_balance: Uint256) = uint256_checked_sub_le(sender_balance, amount)
     balances.write(sender, new_sender_balance)
 
     # add to recipient
     let (recipient_balance: Uint256) = balances.read(account=recipient)
     # overflow is not possible because sum is guaranteed by mint to be less than total supply
-    let (new_recipient_balance, _: Uint256) = uint256_add(recipient_balance, amount)
+    let (new_recipient_balance: Uint256) = uint256_checked_add(recipient_balance, amount)
     balances.write(recipient, new_recipient_balance)
 
     Transfer.emit(from_address=sender, to_address=recipient, amount=amount)
@@ -981,11 +950,11 @@ func _burn{
         assert_not_zero(enough_balance)
     end
     
-    let (new_balance: Uint256) = uint256_sub(balance, amount)
+    let (new_balance: Uint256) = uint256_checked_sub_le(balance, amount)
     balances.write(account, new_balance)
 
     let (supply: Uint256) = total_supply.read()
-    let (new_supply: Uint256) = uint256_sub(supply, amount)
+    let (new_supply: Uint256) = uint256_checked_sub_le(supply, amount)
     total_supply.write(new_supply)
     return ()
 end
@@ -1038,24 +1007,17 @@ func _mint_protocol_fee{
 
     if fee_on == 1:
         if is_klast_equal_to_zero == 0:
-            let (reserve_mul_low: Uint256, reserve_mul_high: Uint256) = uint256_mul(reserve0, reserve1)
-            let (is_reserve_mul_high_equal_to_zero) =  uint256_eq(reserve_mul_high, Uint256(0, 0))
-            assert is_reserve_mul_high_equal_to_zero = 1
-            let (local rootk: Uint256) = uint256_sqrt(reserve_mul_low)
+            let (reserve0_mul_reserve1: Uint256) = uint256_checked_mul(reserve0, reserve1)
+            let (local rootk: Uint256) = uint256_sqrt(reserve0_mul_reserve1)
             let (local rootklast: Uint256) = uint256_sqrt(klast)
             let (is_rootk_greater_than_rootklast) = uint256_lt(rootklast, rootk)
             if is_rootk_greater_than_rootklast == 1:
-                let (local rootkdiff: Uint256) = uint256_sub(rootk, rootklast)
+                let (local rootkdiff: Uint256) = uint256_checked_sub_le(rootk, rootklast)
                 let (local _total_supply: Uint256) = total_supply.read()
-                let (numerator_mul_low: Uint256, numerator_mul_high: Uint256) = uint256_mul(rootkdiff, _total_supply)
-                let (is_numerator_mul_high_equal_to_zero) =  uint256_eq(numerator_mul_high, Uint256(0, 0))
-                assert is_numerator_mul_high_equal_to_zero = 1
-                let (denominator_mul_low: Uint256, denominator_mul_high: Uint256) = uint256_mul(rootk, Uint256(5, 0))
-                let (is_denominator_mul_high_equal_to_zero) =  uint256_eq(denominator_mul_high, Uint256(0, 0))
-                assert is_denominator_mul_high_equal_to_zero = 1
-                let (local denominator: Uint256, is_overflow) = uint256_add(denominator_mul_low, rootklast)
-                assert (is_overflow) = 0
-                let (liquidity: Uint256, _) = uint256_unsigned_div_rem(numerator_mul_low, denominator)
+                let (numerator: Uint256) = uint256_checked_mul(rootkdiff, _total_supply)
+                let (rootk_mul_5: Uint256) = uint256_felt_checked_mul(rootk, 5)
+                let (local denominator: Uint256) = uint256_checked_add(rootk_mul_5, rootklast)
+                let (liquidity: Uint256, _) = uint256_unsigned_div_rem(numerator, denominator)
                 let (is_liquidity_greater_than_zero) = uint256_lt(Uint256(0, 0), liquidity)
                 if is_liquidity_greater_than_zero == 1:
                     _mint(fee_to, liquidity)
@@ -1126,20 +1088,14 @@ func _update{
                 if is_reserve1_equal_to_zero == 0:
                     let (price_0_cumulative_last) = _price_0_cumulative_last.read()
                     let (reserve1by0: Uint256, _) = uint256_unsigned_div_rem(reserve1, reserve0)
-                    let (reserve1by0multime: Uint256, mul_high0: Uint256) = uint256_mul(reserve1by0, Uint256(block_timestamp - block_timestamp_last, 0))
-                    let (is_equal_to_zero0) =  uint256_eq(mul_high0, Uint256(0, 0))
-                    assert is_equal_to_zero0 = 1
-                    let (new_price_0_cumulative: Uint256, is_overflow0) = uint256_add(price_0_cumulative_last, reserve1by0multime)
-                    assert (is_overflow0) = 0
+                    let (reserve1by0_mul_time: Uint256) = uint256_felt_checked_mul(reserve1by0, block_timestamp - block_timestamp_last)
+                    let (new_price_0_cumulative: Uint256) = uint256_checked_add(price_0_cumulative_last, reserve1by0_mul_time)
                     _price_0_cumulative_last.write(new_price_0_cumulative)
                     
                     let (price_1_cumulative_last) = _price_1_cumulative_last.read()
                     let (reserve0by1: Uint256, _) = uint256_unsigned_div_rem(reserve0, reserve1)
-                    let (reserve0by1multime: Uint256, mul_high1: Uint256) = uint256_mul(reserve0by1, Uint256(block_timestamp - block_timestamp_last, 0))
-                    let (is_equal_to_zero1) =  uint256_eq(mul_high1, Uint256(0, 0))
-                    assert is_equal_to_zero1 = 1
-                    let (new_price_1_cumulative: Uint256, is_overflow1) = uint256_add(price_1_cumulative_last, reserve0by1multime)
-                    assert (is_overflow1) = 0
+                    let (reserve0by1_mul_time: Uint256) = uint256_felt_checked_mul(reserve0by1, block_timestamp - block_timestamp_last)
+                    let (new_price_1_cumulative: Uint256) = uint256_checked_add(price_1_cumulative_last, reserve0by1_mul_time)
                     _price_1_cumulative_last.write(new_price_1_cumulative)
                     
                     tempvar syscall_ptr = syscall_ptr
