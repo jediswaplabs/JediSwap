@@ -29,6 +29,9 @@ const BURN_ADDRESS = 1
 #
 @contract_interface
 namespace IERC20:
+
+    func decimals() -> (decimals: felt):
+    end
     
     func balanceOf(account: felt) -> (balance: Uint256):
     end
@@ -96,6 +99,16 @@ end
 # @dev token1 address
 @storage_var
 func _token1() -> (address: felt):
+end
+
+# @dev token0 decimals
+@storage_var
+func _decimals0() -> (res: felt):
+end
+
+# @dev token1 decimals
+@storage_var
+func _decimals1() -> (res: felt):
 end
 
 # @dev is stable pair? (0 or 1)
@@ -211,6 +224,10 @@ func constructor{
     _locked.write(0)
     _token0.write(token0)
     _token1.write(token1)
+    let (decimals0) = IERC20.decimals(contract_address=token0)
+    let (decimals1) = IERC20.decimals(contract_address=token1)
+    _decimals0.write(decimals0)
+    _decimals1.write(decimals1)
     _stable.write(stable)
     _registry.write(registry)
     return ()
@@ -556,12 +573,7 @@ func mint{
 
     if is_total_supply_equal_to_zero == 1:
         let (amount0_mul_amount1: Uint256) = uint256_checked_mul(amount0, amount1)
-
         let (mul_sqrt: Uint256) = uint256_sqrt(amount0_mul_amount1)
-
-        # local mul_sqrt: Uint256
-        # assert mul_sqrt = amount0
-
         let (initial_liquidity: Uint256) = uint256_checked_sub_lt(mul_sqrt, Uint256(MINIMUM_LIQUIDITY, 0))
         assert liquidity = initial_liquidity
         _mint(BURN_ADDRESS, Uint256(MINIMUM_LIQUIDITY, 0))
@@ -604,7 +616,14 @@ func mint{
             let (klast_non_stable: Uint256) = uint256_checked_mul(balance0, balance1)
             _klast.write(klast_non_stable)
         else:
-            let (klast_stable: Uint256) = uint256_checked_add(balance0, balance1)
+            let (decimals0) = _decimals0.read()
+            let (decimals1) = _decimals1.read()
+            let (scaling_factor) = pow(10, 18)
+            let (multiplier0) = pow(10, decimals0)
+            let (multiplier1) = pow(10, decimals1)
+            let (balance0Scaled: Uint256) = uint256_felt_checked_mul(balance0, scaling_factor / multiplier0)
+            let (balance1Scaled: Uint256) = uint256_felt_checked_mul(balance1, scaling_factor / multiplier1)
+            let (klast_stable: Uint256) = uint256_checked_add(balance0Scaled, balance1Scaled)
             _klast.write(klast_stable)
         end
         tempvar syscall_ptr = syscall_ptr
@@ -678,10 +697,17 @@ func burn{
     if fee_on == 1:
         let (stable) = _stable.read()
         if stable == 0:
-            let (klast_non_stable: Uint256) = uint256_checked_mul(balance0, balance1)
+            let (klast_non_stable: Uint256) = uint256_checked_mul(final_balance0, final_balance1)
             _klast.write(klast_non_stable)
         else:
-            let (klast_stable: Uint256) = uint256_checked_add(balance0, balance1)
+            let (decimals0) = _decimals0.read()
+            let (decimals1) = _decimals1.read()
+            let (scaling_factor) = pow(10, 18)
+            let (multiplier0) = pow(10, decimals0)
+            let (multiplier1) = pow(10, decimals1)
+            let (balance0Scaled: Uint256) = uint256_felt_checked_mul(final_balance0, scaling_factor / multiplier0)
+            let (balance1Scaled: Uint256) = uint256_felt_checked_mul(final_balance1, scaling_factor / multiplier1)
+            let (klast_stable: Uint256) = uint256_checked_add(balance0Scaled, balance1Scaled)
             _klast.write(klast_stable)
         end
         tempvar syscall_ptr = syscall_ptr
@@ -822,9 +848,18 @@ func swap{
         tempvar pedersen_ptr = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
     else:
-        let (balance_sum: Uint256) = uint256_checked_add(balance0Adjusted, balance1Adjusted)
+        let (decimals0) = _decimals0.read()
+        let (decimals1) = _decimals1.read()
+        let (scaling_factor) = pow(10, 18)
+        let (multiplier0) = pow(10, decimals0)
+        let (multiplier1) = pow(10, decimals1)
+        let (balance0AdjustedScaled: Uint256) = uint256_felt_checked_mul(balance0Adjusted, scaling_factor / multiplier0)
+        let (balance1AdjustedScaled: Uint256) = uint256_felt_checked_mul(balance1Adjusted, scaling_factor / multiplier1)
+        let (balance_sum: Uint256) = uint256_checked_add(balance0AdjustedScaled, balance1AdjustedScaled)
 
-        let (reserve_sum: Uint256) = uint256_checked_add(reserve0, reserve1)
+        let (reserve0Scaled: Uint256) = uint256_felt_checked_mul(reserve0, scaling_factor / multiplier0)
+        let (reserve1Scaled: Uint256) = uint256_felt_checked_mul(reserve1, scaling_factor / multiplier1)
+        let (reserve_sum: Uint256) = uint256_checked_add(reserve0Scaled, reserve1Scaled)
         let (reserve_sum_mul_1000: Uint256) = uint256_felt_checked_mul(reserve_sum, 1000)
 
         let (is_balance_adjusted_sum_greater_than_equal_final_reserve_sum) = uint256_le(reserve_sum_mul_1000, balance_sum)

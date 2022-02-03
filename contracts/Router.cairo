@@ -11,6 +11,7 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address, get_block_timestamp
 from starkware.cairo.common.math import assert_le, assert_not_zero, assert_not_equal
 from starkware.cairo.common.math_cmp import is_le, is_le_felt
+from starkware.cairo.common.pow import pow
 from starkware.cairo.common.uint256 import (Uint256, uint256_eq, uint256_le, uint256_lt, uint256_unsigned_div_rem)
 from starkware.cairo.common.alloc import alloc
 from contracts.utils.math import uint256_checked_add, uint256_checked_sub_lt, uint256_checked_mul, uint256_felt_checked_mul
@@ -26,6 +27,9 @@ namespace IERC20:
             recipient: felt, 
             amount: Uint256
         ) -> (success: felt):
+    end
+
+    func decimals() -> (decimals: felt):
     end
 end
 
@@ -124,8 +128,8 @@ func quote{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(amountA: Uint256, reserveA: Uint256, reserveB: Uint256, stable: felt) -> (amountB: Uint256):
-    return _quote(amountA, reserveA, reserveB, stable)
+    }(amountA: Uint256, decimalsA: felt, decimalsB: felt, reserveA: Uint256, reserveB: Uint256, stable: felt) -> (amountB: Uint256):
+    return _quote(amountA, decimalsA, decimalsB, reserveA, reserveB, stable)
 end
 
 # @notice Given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset
@@ -138,8 +142,8 @@ func get_amount_out{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(amountIn: Uint256, reserveIn: Uint256, reserveOut: Uint256, stable: felt) -> (amountOut: Uint256):
-    return _get_amount_out(amountIn, reserveIn, reserveOut, stable)
+    }(amountIn: Uint256, decimalsIn: felt,  decimalsOut: felt, reserveIn: Uint256, reserveOut: Uint256, stable: felt) -> (amountOut: Uint256):
+    return _get_amount_out(amountIn, decimalsIn, decimalsOut, reserveIn, reserveOut, stable)
 end
 
 # @notice Given an output amount of an asset and pair reserves, returns a required input amount of the other asset
@@ -152,8 +156,8 @@ func get_amount_in{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(amountOut: Uint256, reserveIn: Uint256, reserveOut: Uint256, stable: felt) -> (amountIn: Uint256):
-    return _get_amount_in(amountOut, reserveIn, reserveOut, stable)
+    }(amountOut: Uint256, decimalsIn: felt,  decimalsOut: felt, reserveIn: Uint256, reserveOut: Uint256, stable: felt) -> (amountIn: Uint256):
+    return _get_amount_in(amountOut, decimalsIn, decimalsOut, reserveIn, reserveOut, stable)
 end
 
 # @notice Performs chained get_amount_out calculations on any number of pairs
@@ -370,14 +374,14 @@ func _add_liquidity{
         assert_not_zero(pair)  ## This will be changed when factory pattern is allowed and we can create pair on the fly
     end
     
-    let (local reserveA: Uint256, local reserveB: Uint256, local stable) = _get_reserves(registry, tokenA, tokenB)
+    let (local decimalsA, local decimalsB, local reserveA: Uint256, local reserveB: Uint256, local stable) = _get_reserves(registry, tokenA, tokenB)
     let (reserveA_mul_reserveB: Uint256) = uint256_checked_mul(reserveA, reserveB)
     let (is_reserveA_mul_reserveB_equal_to_zero) =  uint256_eq(reserveA_mul_reserveB, Uint256(0, 0))
 
     if is_reserveA_mul_reserveB_equal_to_zero == 1:
         return (amountADesired, amountBDesired)
     else:
-        let (local amountBOptimal: Uint256) = _quote(amountADesired, reserveA, reserveB, stable)
+        let (local amountBOptimal: Uint256) = _quote(amountADesired, decimalsA, decimalsB, reserveA, reserveB, stable)
         let (is_amountBOptimal_less_than_equal_amountBDesired) = uint256_le(amountBOptimal, amountBDesired)
         if is_amountBOptimal_less_than_equal_amountBDesired == 1:
             let (is_amountBOptimal_greater_than_equal_amountBMin) = uint256_le(amountBMin, amountBOptimal)
@@ -386,7 +390,7 @@ func _add_liquidity{
             end
             return (amountADesired, amountBOptimal)
         else:
-            let (local amountAOptimal: Uint256) = _quote(amountBDesired, reserveB, reserveA, stable)
+            let (local amountAOptimal: Uint256) = _quote(amountBDesired, decimalsA, decimalsB, reserveB, reserveA, stable)
             let (is_amountAOptimal_less_than_equal_amountADesired) = uint256_le(amountAOptimal, amountADesired)
             assert is_amountAOptimal_less_than_equal_amountADesired = 1
             let (is_amountAOptimal_greater_than_equal_amountAMin) = uint256_le(amountAMin, amountAOptimal)
@@ -474,16 +478,18 @@ func _get_reserves{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(registry: felt, tokenA: felt, tokenB: felt) -> (reserveA: Uint256, reserveB: Uint256, stable: felt):
+    }(registry: felt, tokenA: felt, tokenB: felt) -> (decimalsA: felt, decimalsB: felt, reserveA: Uint256, reserveB: Uint256, stable: felt):
     alloc_locals
     let (local token0, _) = _sort_tokens(tokenA, tokenB)
     let (local pair) = _pair_for(registry, tokenA, tokenB)
     let (local reserve0: Uint256, local reserve1: Uint256, _) = IPair.get_reserves(contract_address=pair)
     let (local stable) = IPair.stable(contract_address=pair)
+    let (local decimalsA) = IERC20.decimals(contract_address=tokenA)
+    let (local decimalsB) = IERC20.decimals(contract_address=tokenB)
     if tokenA == token0:
-        return (reserve0, reserve1, stable)
+        return (decimalsA, decimalsB, reserve0, reserve1, stable)
     else:
-        return (reserve1, reserve0, stable)
+        return (decimalsA, decimalsB, reserve1, reserve0, stable)
     end
 end
 
@@ -495,7 +501,7 @@ func _quote{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(amountA: Uint256, reserveA: Uint256, reserveB: Uint256, stable: felt) -> (amountB: Uint256):
+    }(amountA: Uint256, decimalsA: felt, decimalsB: felt, reserveA: Uint256, reserveB: Uint256, stable: felt) -> (amountB: Uint256):
     alloc_locals
     let (is_amountA_greater_than_zero) = uint256_lt(Uint256(0, 0), amountA)
     with_attr error_message("Router::_quote::insufficient amount"):
@@ -513,7 +519,11 @@ func _quote{
         let (amountB: Uint256, _) = uint256_unsigned_div_rem(amountA_mul_reserveB, reserveA)
         return (amountB)
     else:
-        return (amountA)
+        let (multiplierA) = pow(10, decimalsA)
+        let (multiplierB) = pow(10, decimalsB)
+        let (amountA_mul_multiplierB: Uint256) = uint256_felt_checked_mul(amountA, multiplierB)
+        let (amountB: Uint256, _) = uint256_unsigned_div_rem(amountA_mul_multiplierB, Uint256(multiplierA, 0))
+        return (amountB)
     end
 end
 
@@ -521,7 +531,7 @@ func _get_amount_out{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(amountIn: Uint256, reserveIn: Uint256, reserveOut: Uint256, stable: felt) -> (amountOut: Uint256):
+    }(amountIn: Uint256, decimalsIn: felt,  decimalsOut: felt, reserveIn: Uint256, reserveOut: Uint256, stable: felt) -> (amountOut: Uint256):
     alloc_locals
     let (is_amountIn_greater_than_zero) = uint256_lt(Uint256(0, 0), amountIn)
     with_attr error_message("Router::_get_amount_out::insufficient input amount"):
@@ -542,8 +552,10 @@ func _get_amount_out{
         let (amountOut: Uint256, _) = uint256_unsigned_div_rem(numerator, denominator)
         return (amountOut)
     else:
-        let (amountIn_with_fee: Uint256) = uint256_felt_checked_mul(amountIn, 997)
-        let (amountOut: Uint256, _) = uint256_unsigned_div_rem(amountIn_with_fee, Uint256(1000, 0))
+        let (multiplierIn) = pow(10, decimalsIn)
+        let (multiplierOut) = pow(10, decimalsOut)
+        let (amountIn_with_fee: Uint256) = uint256_felt_checked_mul(amountIn, multiplierOut * 997)
+        let (amountOut: Uint256, _) = uint256_unsigned_div_rem(amountIn_with_fee, Uint256(multiplierIn * 1000, 0))
         return (amountOut)
     end
 end
@@ -552,7 +564,7 @@ func _get_amount_in{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(amountOut: Uint256, reserveIn: Uint256, reserveOut: Uint256, stable: felt) -> (amountIn: Uint256):
+    }(amountOut: Uint256, decimalsIn: felt,  decimalsOut: felt, reserveIn: Uint256, reserveOut: Uint256, stable: felt) -> (amountIn: Uint256):
     alloc_locals
     let (is_amountOut_greater_than_zero) = uint256_lt(Uint256(0, 0), amountOut)
     with_attr error_message("Router::_get_amount_in::insufficient output amount"):
@@ -574,8 +586,10 @@ func _get_amount_in{
         let (amountIn: Uint256) = uint256_checked_add(amountIn_0, Uint256(1, 0))
         return (amountIn)
     else:
-        let (numerator: Uint256) = uint256_felt_checked_mul(amountOut, 1000)
-        let (amountIn: Uint256, _) = uint256_unsigned_div_rem(numerator, Uint256(997, 0))
+        let (multiplierIn) = pow(10, decimalsIn)
+        let (multiplierOut) = pow(10, decimalsOut)
+        let (numerator: Uint256) = uint256_felt_checked_mul(amountOut, multiplierIn * 1000)
+        let (amountIn: Uint256, _) = uint256_unsigned_div_rem(numerator, Uint256(multiplierOut * 997, 0))
         return (amountIn)
     end
 end
@@ -611,8 +625,8 @@ func _build_amounts_out{
         tempvar pedersen_ptr = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
     else:
-        let (local reserveIn: Uint256, local reserveOut: Uint256, local stable) = _get_reserves(registry, [path - 1], [path])
-        let (local amountOut: Uint256) = _get_amount_out([amounts - Uint256.SIZE], reserveIn, reserveOut, stable)
+        let (local decimalsIn, local decimalsOut, local reserveIn: Uint256, local reserveOut: Uint256, local stable) = _get_reserves(registry, [path - 1], [path])
+        let (local amountOut: Uint256) = _get_amount_out([amounts - Uint256.SIZE], decimalsIn, decimalsOut, reserveIn, reserveOut, stable)
         assert [amounts] = amountOut
         tempvar syscall_ptr = syscall_ptr
         tempvar pedersen_ptr = pedersen_ptr
@@ -650,8 +664,8 @@ func _build_amounts_in{
         tempvar pedersen_ptr = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
     else:
-        let (local reserveIn: Uint256, local reserveOut: Uint256, local stable) = _get_reserves(registry, [path], [path + 1])
-        let (local amountIn: Uint256) = _get_amount_in([amounts + Uint256.SIZE], reserveIn, reserveOut, stable)
+        let (local decimalsIn, local decimalsOut, local reserveIn: Uint256, local reserveOut: Uint256, local stable) = _get_reserves(registry, [path], [path + 1])
+        let (local amountIn: Uint256) = _get_amount_in([amounts + Uint256.SIZE], decimalsIn, decimalsOut, reserveIn, reserveOut, stable)
         assert [amounts] = amountIn
         tempvar syscall_ptr = syscall_ptr
         tempvar pedersen_ptr = pedersen_ptr
