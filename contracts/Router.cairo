@@ -11,9 +11,9 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address, get_block_timestamp
 from starkware.cairo.common.math import assert_le, assert_not_zero, assert_not_equal
 from starkware.cairo.common.math_cmp import is_le, is_le_felt
-from starkware.cairo.common.uint256 import (Uint256, uint256_eq, uint256_le, uint256_lt, 
-    uint256_add, uint256_sub, uint256_mul, uint256_unsigned_div_rem)
+from starkware.cairo.common.uint256 import (Uint256, uint256_eq, uint256_le, uint256_lt, uint256_unsigned_div_rem)
 from starkware.cairo.common.alloc import alloc
+from contracts.utils.math import uint256_checked_add, uint256_checked_sub_lt, uint256_checked_mul, uint256_felt_checked_mul
 
 #
 # Interfaces
@@ -367,12 +367,10 @@ func _add_liquidity{
         assert_not_zero(pair)  ## This will be changed when factory pattern is allowed and we can create pair on the fly
     end
     let (local reserveA: Uint256, local reserveB: Uint256) = _get_reserves(registry, tokenA, tokenB)
-    let (mul_low: Uint256, mul_high: Uint256) = uint256_mul(reserveA, reserveB)
-    let (is_mul_high_equal_to_zero) =  uint256_eq(mul_high, Uint256(0, 0))
-    assert is_mul_high_equal_to_zero = 1
-    let (is_mul_low_equal_to_zero) =  uint256_eq(mul_low, Uint256(0, 0))
+    let (reserveA_mul_reserveB: Uint256) = uint256_checked_mul(reserveA, reserveB)
+    let (is_reserveA_mul_reserveB_equal_to_zero) =  uint256_eq(reserveA_mul_reserveB, Uint256(0, 0))
 
-    if is_mul_low_equal_to_zero == 1:
+    if is_reserveA_mul_reserveB_equal_to_zero == 1:
         return (amountADesired, amountBDesired)
     else:
         let (local amountBOptimal: Uint256) = _quote(amountADesired, reserveA, reserveB)
@@ -505,10 +503,8 @@ func _quote{
         assert is_reserveB_greater_than_zero = 1
     end
 
-    let (mul_low: Uint256, mul_high: Uint256) = uint256_mul(amountA, reserveB)
-    let (is_equal_to_zero) =  uint256_eq(mul_high, Uint256(0, 0))
-    assert is_equal_to_zero = 1
-    let (amountB: Uint256, _) = uint256_unsigned_div_rem(mul_low, reserveA)
+    let (amountA_mul_reserveB: Uint256) = uint256_checked_mul(amountA, reserveB)
+    let (amountB: Uint256, _) = uint256_unsigned_div_rem(amountA_mul_reserveB, reserveA)
     return (amountB)
 end
 
@@ -529,20 +525,12 @@ func _get_amount_out{
         assert is_reserveOut_greater_than_zero = 1
     end
 
-    let (mul_low_amountIn_fee: Uint256, mul_high_amountIn_fee: Uint256) = uint256_mul(amountIn, Uint256(997, 0))
-    let (is_equal_to_zero_amountIn_fee) =  uint256_eq(mul_high_amountIn_fee, Uint256(0, 0))
-    assert is_equal_to_zero_amountIn_fee = 1
-    let (mul_low_numerator: Uint256, mul_high_numerator: Uint256) = uint256_mul(mul_low_amountIn_fee, reserveOut)
-    let (is_equal_to_zero_numerator) =  uint256_eq(mul_high_numerator, Uint256(0, 0))
-    assert is_equal_to_zero_numerator = 1
-
-    let (mul_low_denominator_0: Uint256, mul_high_denominator_0: Uint256) = uint256_mul(reserveIn, Uint256(1000, 0))
-    let (is_equal_to_zero_denominator_0) =  uint256_eq(mul_high_denominator_0, Uint256(0, 0))
-    assert is_equal_to_zero_denominator_0 = 1
-    let (local denominator: Uint256, is_overflow) = uint256_add(mul_low_denominator_0, mul_low_amountIn_fee)
-    assert (is_overflow) = 0
+    let (amountIn_with_fee: Uint256) = uint256_felt_checked_mul(amountIn, 997)
+    let (numerator: Uint256) = uint256_checked_mul(amountIn_with_fee, reserveOut)
+    let (reserveIn_mul_1000: Uint256) = uint256_felt_checked_mul(reserveIn, 1000)
+    let (local denominator: Uint256) = uint256_checked_add(reserveIn_mul_1000, amountIn_with_fee)
     
-    let (amountIn: Uint256, _) = uint256_unsigned_div_rem(mul_low_numerator, denominator)
+    let (amountIn: Uint256, _) = uint256_unsigned_div_rem(numerator, denominator)
     return (amountIn)
 end
 
@@ -563,21 +551,13 @@ func _get_amount_in{
         assert is_reserveOut_greater_than_zero = 1
     end
 
-    let (mul_low_numerator_0: Uint256, mul_high_numerator_0: Uint256) = uint256_mul(amountOut, reserveIn)
-    let (is_equal_to_zero_numerator_0) =  uint256_eq(mul_high_numerator_0, Uint256(0, 0))
-    assert is_equal_to_zero_numerator_0 = 1
-    let (mul_low_numerator: Uint256, mul_high_numerator: Uint256) = uint256_mul(mul_low_numerator_0, Uint256(1000, 0))
-    let (is_equal_to_zero_numerator) =  uint256_eq(mul_high_numerator, Uint256(0, 0))
-    assert is_equal_to_zero_numerator = 1
-
-    let (denominator_0: Uint256) = uint256_sub(reserveOut, amountOut)
-    let (mul_low_denominator: Uint256, mul_high_denominator: Uint256) = uint256_mul(denominator_0, Uint256(997, 0))
-    let (is_equal_to_zero_denominator) =  uint256_eq(mul_high_denominator, Uint256(0, 0))
-    assert is_equal_to_zero_denominator = 1
+    let (amountOut_mul_reserveIn: Uint256) = uint256_checked_mul(amountOut, reserveIn)
+    let (numerator: Uint256) = uint256_felt_checked_mul(amountOut_mul_reserveIn, 1000)
+    let (denominator_0: Uint256) = uint256_checked_sub_lt(reserveOut, amountOut)
+    let (denominator: Uint256) = uint256_felt_checked_mul(denominator_0, 997)
     
-    let (amountIn_0: Uint256, _) = uint256_unsigned_div_rem(mul_low_numerator, mul_low_denominator)
-    let (local amountIn: Uint256, is_overflow) = uint256_add(amountIn_0, Uint256(1, 0))
-    assert (is_overflow) = 0
+    let (amountIn_0: Uint256, _) = uint256_unsigned_div_rem(numerator, denominator)
+    let (local amountIn: Uint256) = uint256_checked_add(amountIn_0, Uint256(1, 0))
     
     return (amountIn)
 end
