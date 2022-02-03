@@ -793,7 +793,7 @@ func swap{
     with_attr error_message("Pair::swap::insufficient input amount"):
         assert sufficient_input_amount = 1
     end
-    
+
     let (local amount0In: Uint256) = uint256_checked_sub_le(balance0, expected_balance0)
     let (local amount1In: Uint256) = uint256_checked_sub_le(balance1, expected_balance1)
 
@@ -809,9 +809,8 @@ func swap{
 
     if stable == 0:
         let (balance0Adjusted_mul_balance1Adjusted: Uint256) = uint256_checked_mul(balance0Adjusted, balance1Adjusted)
-
+        
         let (reserve0_mul_reserve1: Uint256) = uint256_checked_mul(reserve0, reserve1)
-
         let (multiplier) = pow(1000, 2)
         let (reserve0_mul_reserve1_mul_multiplier: Uint256) = uint256_felt_checked_mul(reserve0_mul_reserve1, multiplier)
 
@@ -819,17 +818,22 @@ func swap{
         with_attr error_message("Pair::swap::invariant K"):
             assert is_balance_adjusted_mul_greater_than_equal_final_reserve_mul = 1
         end
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
     else:
         let (balance_sum: Uint256) = uint256_checked_add(balance0Adjusted, balance1Adjusted)
 
         let (reserve_sum: Uint256) = uint256_checked_add(reserve0, reserve1)
-
         let (reserve_sum_mul_1000: Uint256) = uint256_felt_checked_mul(reserve_sum, 1000)
 
         let (is_balance_adjusted_sum_greater_than_equal_final_reserve_sum) = uint256_le(reserve_sum_mul_1000, balance_sum)
         with_attr error_message("Pair::swap::invariant K"):
             assert is_balance_adjusted_sum_greater_than_equal_final_reserve_sum = 1
         end
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
     end
 
     _update(balance0, balance1, reserve0, reserve1)
