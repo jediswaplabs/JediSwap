@@ -390,7 +390,7 @@ func _add_liquidity{
             end
             return (amountADesired, amountBOptimal)
         else:
-            let (local amountAOptimal: Uint256) = _quote(amountBDesired, decimalsA, decimalsB, reserveB, reserveA, stable)
+            let (local amountAOptimal: Uint256) = _quote(amountBDesired, decimalsB, decimalsA, reserveB, reserveA, stable)
             let (is_amountAOptimal_less_than_equal_amountADesired) = uint256_le(amountAOptimal, amountADesired)
             assert is_amountAOptimal_less_than_equal_amountADesired = 1
             let (is_amountAOptimal_greater_than_equal_amountAMin) = uint256_le(amountAMin, amountAOptimal)
@@ -589,7 +589,8 @@ func _get_amount_in{
         let (multiplierIn) = pow(10, decimalsIn)
         let (multiplierOut) = pow(10, decimalsOut)
         let (numerator: Uint256) = uint256_felt_checked_mul(amountOut, multiplierIn * 1000)
-        let (amountIn: Uint256, _) = uint256_unsigned_div_rem(numerator, Uint256(multiplierOut * 997, 0))
+        let (amountIn_0: Uint256, _) = uint256_unsigned_div_rem(numerator, Uint256(multiplierOut * 997, 0))
+        let (amountIn: Uint256) = uint256_checked_add(amountIn_0, Uint256(1, 0))
         return (amountIn)
     end
 end

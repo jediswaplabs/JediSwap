@@ -78,7 +78,7 @@ async def test_add_remove_liquidity(router, pair, token_0, token_1, user_1, rand
     print(f"{amountA}, {amountB}, {liquidity}")
     assert amountA == amount_token_0
     assert amountB == amount_token_1
-    assert float(liquidity) == math.sqrt(amount_token_0 * amount_token_1) - MINIMUM_LIQUIDITY
+    assert float(liquidity) == pytest.approx(math.sqrt(amount_token_0 * amount_token_1) - MINIMUM_LIQUIDITY)
 
     event_data = get_event_data(execution_info, "Mint")
     assert event_data

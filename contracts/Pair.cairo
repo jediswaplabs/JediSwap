@@ -863,7 +863,7 @@ func swap{
         let (reserve_sum_mul_1000: Uint256) = uint256_felt_checked_mul(reserve_sum, 1000)
 
         let (is_balance_adjusted_sum_greater_than_equal_final_reserve_sum) = uint256_le(reserve_sum_mul_1000, balance_sum)
-        with_attr error_message("Pair::swap::invariant K"):
+        with_attr error_message("Pair::swap::invariant K Stable"):
             assert is_balance_adjusted_sum_greater_than_equal_final_reserve_sum = 1
         end
         tempvar syscall_ptr = syscall_ptr

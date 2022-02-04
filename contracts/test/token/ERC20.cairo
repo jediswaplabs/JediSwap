@@ -48,13 +48,14 @@ func constructor{
     }(
         name: felt,
         symbol: felt,
+        decimals: felt,
         recipient: felt
     ):
     # get_caller_address() returns '0' in the constructor;
     # therefore, recipient parameter is included
     _name.write(name)
     _symbol.write(symbol)
-    _decimals.write(18)
+    _decimals.write(decimals)
     _mint(recipient, Uint256(1000, 0))
     return ()
 end

@@ -80,6 +80,7 @@ async def token_0(starknet, random_acc):
         constructor_calldata=[
             str_to_felt("Token 0"),  # name
             str_to_felt("TOKEN0"),  # symbol
+            18,                     # decimals
             random_account.contract_address
         ]
     )
@@ -93,6 +94,7 @@ async def token_1(starknet, random_acc):
         constructor_calldata=[
             str_to_felt("Token 1"),  # name
             str_to_felt("TOKEN1"),  # symbol
+            6,                     # decimals
             random_account.contract_address
         ]
     )
@@ -106,10 +108,53 @@ async def token_2(starknet, random_acc):
         constructor_calldata=[
             str_to_felt("Token 2"),  # name
             str_to_felt("TOKEN2"),  # symbol
+            18,                     # decimals
             random_account.contract_address
         ]
     )
     return token_2
+
+@pytest.fixture
+async def stable_token_0(starknet, random_acc):
+    random_signer, random_account = random_acc
+    stable_token_0 = await starknet.deploy(
+        "contracts/test/token/ERC20.cairo",
+        constructor_calldata=[
+            str_to_felt("Stable Token 0"),  # name
+            str_to_felt("STOKEN0"),  # symbol
+            18,                     # decimals
+            random_account.contract_address
+        ]
+    )
+    return stable_token_0
+
+@pytest.fixture
+async def stable_token_1(starknet, random_acc):
+    random_signer, random_account = random_acc
+    stable_token_1 = await starknet.deploy(
+        "contracts/test/token/ERC20.cairo",
+        constructor_calldata=[
+            str_to_felt("Stable Token 1"),  # name
+            str_to_felt("STOKEN1"),  # symbol
+            6,                     # decimals
+            random_account.contract_address
+        ]
+    )
+    return stable_token_1
+
+@pytest.fixture
+async def stable_token_2(starknet, random_acc):
+    random_signer, random_account = random_acc
+    stable_token_2 = await starknet.deploy(
+        "contracts/test/token/ERC20.cairo",
+        constructor_calldata=[
+            str_to_felt("Stable Token 2"),  # name
+            str_to_felt("STOKEN2"),  # symbol
+            18,                     # decimals
+            random_account.contract_address
+        ]
+    )
+    return stable_token_2
 
 @pytest.fixture
 async def pair_name():
@@ -172,3 +217,40 @@ async def other_pair(starknet, deployer, pair_name, pair_symbol, token_1, token_
     )
     await deployer_signer.send_transaction(deployer_account, registry.contract_address, 'set_pair', [token_1.contract_address, token_2.contract_address, other_pair.contract_address])
     return other_pair
+
+
+@pytest.fixture
+async def stable_pair(starknet, deployer, pair_name, pair_symbol, stable_token_0, stable_token_1, router, registry):
+    deployer_signer, deployer_account = deployer
+    execution_info = await router.sort_tokens(stable_token_0.contract_address, stable_token_1.contract_address).call()
+    stable_pair = await starknet.deploy(
+        "contracts/Pair.cairo",
+        constructor_calldata=[
+            pair_name,  # name
+            pair_symbol,  # symbol
+            execution_info.result.token0,   # token0
+            execution_info.result.token1,   # token1
+            1,                              # stable
+            registry.contract_address
+        ]
+    )
+    await deployer_signer.send_transaction(deployer_account, registry.contract_address, 'set_pair', [stable_token_0.contract_address, stable_token_1.contract_address, stable_pair.contract_address])
+    return stable_pair
+
+@pytest.fixture
+async def other_stable_pair(starknet, deployer, pair_name, pair_symbol, stable_token_1, stable_token_2, router, registry):
+    deployer_signer, deployer_account = deployer
+    execution_info = await router.sort_tokens(stable_token_1.contract_address, stable_token_2.contract_address).call()
+    other_stable_pair = await starknet.deploy(
+        "contracts/Pair.cairo",
+        constructor_calldata=[
+            pair_name,  # name
+            pair_symbol,  # symbol
+            execution_info.result.token0,   # token0
+            execution_info.result.token1,   # token1
+            1,                              # stable
+            registry.contract_address
+        ]
+    )
+    await deployer_signer.send_transaction(deployer_account, registry.contract_address, 'set_pair', [stable_token_1.contract_address, stable_token_2.contract_address, other_stable_pair.contract_address])
+    return other_stable_pair
