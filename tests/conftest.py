@@ -80,6 +80,7 @@ async def token_0(starknet, random_acc):
         constructor_calldata=[
             str_to_felt("Token 0"),  # name
             str_to_felt("TOKEN0"),  # symbol
+            18,                     # decimals
             random_account.contract_address
         ]
     )
@@ -93,6 +94,7 @@ async def token_1(starknet, random_acc):
         constructor_calldata=[
             str_to_felt("Token 1"),  # name
             str_to_felt("TOKEN1"),  # symbol
+            6,                     # decimals
             random_account.contract_address
         ]
     )
@@ -106,6 +108,7 @@ async def token_2(starknet, random_acc):
         constructor_calldata=[
             str_to_felt("Token 2"),  # name
             str_to_felt("TOKEN2"),  # symbol
+            18,                     # decimals
             random_account.contract_address
         ]
     )

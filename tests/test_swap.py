@@ -257,7 +257,7 @@ async def test_swap_exact_0_to_2(router, token_0, token_1, token_2, pair, other_
         reserve_1_0_initial = execution_info.result.reserve0[0]
         reserve_0_0_initial = execution_info.result.reserve1[0]
 
-    other_sort_info = await router.sort_tokens(token_0.contract_address, token_1.contract_address).call()
+    other_sort_info = await router.sort_tokens(token_1.contract_address, token_2.contract_address).call()
     
     execution_info = await other_pair.get_reserves().call()
     if (other_sort_info.result.token0 == token_1.contract_address):
