@@ -876,6 +876,7 @@ func _mint{
     let (local new_supply: Uint256) = uint256_checked_add(supply, amount)
 
     total_supply.write(new_supply)
+    Transfer.emit(0, recipient, amount)
     return ()
 end
 
@@ -956,6 +957,7 @@ func _burn{
     let (supply: Uint256) = total_supply.read()
     let (new_supply: Uint256) = uint256_checked_sub_le(supply, amount)
     total_supply.write(new_supply)
+    Transfer.emit(account, 0, amount)
     return ()
 end
 

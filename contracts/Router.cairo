@@ -530,8 +530,8 @@ func _get_amount_out{
     let (reserveIn_mul_1000: Uint256) = uint256_felt_checked_mul(reserveIn, 1000)
     let (local denominator: Uint256) = uint256_checked_add(reserveIn_mul_1000, amountIn_with_fee)
     
-    let (amountIn: Uint256, _) = uint256_unsigned_div_rem(numerator, denominator)
-    return (amountIn)
+    let (amountOut: Uint256, _) = uint256_unsigned_div_rem(numerator, denominator)
+    return (amountOut)
 end
 
 func _get_amount_in{
