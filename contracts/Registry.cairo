@@ -143,6 +143,18 @@ func owner{
     return (address)
 end
 
+# @notice Get contract future_owner address
+# @return address
+@view
+func future_owner{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (address: felt):
+    let (address) = _future_owner.read()
+    return (address)
+end
+
 #
 # Setters
 #
@@ -190,9 +202,6 @@ func update_fee_to{
         range_check_ptr
     }(new_fee_to: felt):
     _only_owner()
-    with_attr error_message("Registry::update_fee_to::New fee recipient can not be zero"):
-        assert_not_zero(new_fee_to)
-    end
     _fee_to.write(new_fee_to)
     return ()
 end

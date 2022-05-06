@@ -12,13 +12,6 @@ async def test_update_fee_to_non_owner(registry, random_acc, fee_recipient):
                         "Registry::_only_owner::Caller must be owner")
 
 @pytest.mark.asyncio
-async def test_update_fee_to_zero_address(registry, deployer):
-    deployer_signer, deployer_account = deployer
-
-    await assert_revert(deployer_signer.send_transaction(deployer_account, registry.contract_address, 'update_fee_to', [0]), 
-                        "Registry::update_fee_to::New fee recipient can not be zero")
-
-@pytest.mark.asyncio
 async def test_update_fee_to(registry, deployer, fee_recipient):
     deployer_signer, deployer_account = deployer
     fee_recipient_signer, fee_recipient_account = fee_recipient
@@ -55,6 +48,10 @@ async def test_update_owner(registry, deployer, fee_recipient):
     assert event_data
     assert event_data[0] == deployer_account.contract_address
     assert event_data[1] == fee_recipient_account.contract_address
+
+    execution_info = await registry.future_owner().call()
+    print(f"Check new future owner is {fee_recipient_account.contract_address}")
+    assert execution_info.result.address == fee_recipient_account.contract_address
 
 @pytest.mark.asyncio
 async def test_accept_ownership_non_future_owner(registry, deployer, fee_recipient, random_acc):
