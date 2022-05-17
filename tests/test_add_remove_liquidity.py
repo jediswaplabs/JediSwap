@@ -3,7 +3,7 @@ import asyncio
 import math
 from utils.events import get_event_data
 from utils.revert import assert_revert
-from starkware.starknet.business_logic.state import BlockInfo
+from starkware.starknet.business_logic.state.state import BlockInfo
 
 MINIMUM_LIQUIDITY = 1000
 BURN_ADDRESS = 1
@@ -24,7 +24,7 @@ async def test_add_liquidity_expired_deadline(starknet, router, token_0, token_1
     amount_token_0 = 2 * (10 ** token_0_decimals)
     amount_token_1 = 4 * (10 ** token_1_decimals)
 
-    starknet.state.state.block_info = BlockInfo(1, 1)
+    starknet.state.state.block_info = BlockInfo(1, 1, 0)
     
     ## New pair with 0 liquidity
     print("Add liquidity to new pair")

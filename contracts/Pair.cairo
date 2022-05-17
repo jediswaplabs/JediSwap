@@ -50,6 +50,12 @@ namespace IRegistry:
     end
 end
 
+@contract_interface
+namespace IJediSwapCallee:
+    func jediswap_call(sender: felt, amount0Out: Uint256, amount1Out: Uint256, data_len: felt, data: felt*):
+    end
+end
+
 #
 # Storage ERC20
 #
@@ -624,7 +630,9 @@ func burn{
     let (fee_on) = _mint_protocol_fee(reserve0, reserve1)
 
     let (local _total_supply: Uint256) = total_supply.read()
-    let (is_total_supply_equal_to_zero) =  uint256_eq(_total_supply, Uint256(0, 0))
+    let (is_total_supply_greater_than_zero) = uint256_lt(Uint256(0, 0), _total_supply)
+
+    assert is_total_supply_greater_than_zero = 1
 
     let (liquidity_mul_balance0: Uint256) = uint256_checked_mul(liquidity, balance0)
     let (local amount0: Uint256, _) = uint256_unsigned_div_rem(liquidity_mul_balance0, _total_supply)
@@ -679,7 +687,7 @@ func swap{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(amount0Out: Uint256, amount1Out: Uint256, to: felt):
+    }(amount0Out: Uint256, amount1Out: Uint256, to: felt, data_len: felt, data: felt*):
     alloc_locals
     _check_and_lock()
     local sufficient_output_amount
@@ -739,6 +747,20 @@ func swap{
 
     local syscall_ptr: felt* = syscall_ptr
     local pedersen_ptr: HashBuiltin* = pedersen_ptr
+
+    let (caller_address) = get_caller_address()
+
+    let (data_len_greater_than_zero) = is_le(1, data_len)
+    if data_len_greater_than_zero == 1:
+        IJediSwapCallee.jediswap_call(contract_address=to, sender=caller_address, amount0Out=amount0Out, amount1Out=amount1Out, data_len=data_len, data=data)
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    else:
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    end
 
     let (local balance0: Uint256) = IERC20.balanceOf(contract_address=token0, account=self_address)
     let (local balance1: Uint256) = IERC20.balanceOf(contract_address=token1, account=self_address)

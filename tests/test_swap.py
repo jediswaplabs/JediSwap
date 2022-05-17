@@ -149,8 +149,12 @@ async def test_swap_exact_0_to_1(router, token_0, token_1, token_2, pair, other_
     user_2_token_1_balance_final = execution_info.result.balance[0]
 
     execution_info = await pair.get_reserves().call()
-    reserve_0_final = execution_info.result.reserve0[0]
-    reserve_1_final = execution_info.result.reserve1[0]
+    if (sort_info.result.token0 == token_0.contract_address):
+        reserve_0_final = execution_info.result.reserve0[0]
+        reserve_1_final = execution_info.result.reserve1[0]
+    else:
+        reserve_1_final = execution_info.result.reserve0[0]
+        reserve_0_final = execution_info.result.reserve1[0]
 
     print(f"Final balances: {user_2_token_0_balance_final}, {user_2_token_1_balance_final}, {reserve_0_final}, {reserve_1_final}")
 

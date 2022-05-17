@@ -41,7 +41,7 @@ namespace IPair:
     func burn(to: felt) -> (amount0: Uint256, amount1: Uint256):
     end
 
-    func swap(amount0Out: Uint256, amount1Out: Uint256, to: felt):
+    func swap(amount0Out: Uint256, amount1Out: Uint256, to: felt, data_len: felt):
     end
 end
 
@@ -429,7 +429,7 @@ func _swap{
         tempvar range_check_ptr = range_check_ptr
     end
     let (local pair) = _pair_for(registry, [path], [path + 1])
-    IPair.swap(contract_address=pair, amount0Out=amount0Out, amount1Out=amount1Out, to=to)
+    IPair.swap(contract_address=pair, amount0Out=amount0Out, amount1Out=amount1Out, to=to, data_len=0)
     return _swap(current_index + 1, amounts_len, amounts + Uint256.SIZE, path + 1, _to)
 end
 
