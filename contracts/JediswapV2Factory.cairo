@@ -1,0 +1,248 @@
+%lang starknet
+
+# @title Jediswap V2 Factory
+# @author Mesh Finance
+# @license MIT
+
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.starknet.common.syscalls import get_caller_address, deploy, get_contract_address
+from starkware.cairo.common.uint256 import Uint256
+from starkware.cairo.common.cairo_keccak.keccak import keccak_felts, finalize_keccak
+from starkware.cairo.common.math import assert_not_zero, assert_not_equal
+from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.memcpy import memcpy
+
+#
+# Storage
+#
+
+# @dev Address of fee recipient
+@storage_var
+func _fee_to() -> (address : felt):
+end
+
+# @dev Address allowed to change feeTo.
+@storage_var
+func _fee_to_setter() -> (address : felt):
+end
+
+# @dev Array of all pairs
+@storage_var
+func _all_pairs(index : felt) -> (address : felt):
+end
+
+# @dev Pair address for pair of `token0` and `token1`
+@storage_var
+func _pair(token0 : felt, token1 : felt) -> (pair : felt):
+end
+
+# @dev Total pairs
+@storage_var
+func _num_of_pairs() -> (num : felt):
+end
+
+@storage_var
+func _pair_contract_class_hash() -> (class_hash : felt):
+end
+
+# @dev Emitted each time a pair is created via createPair
+# token0 is guaranteed to be strictly less than token1 by sort order.
+
+@event
+func pair_created(token0 : felt, token1 : felt, pair : felt, total_pairs : felt):
+end
+
+#
+# Constructor
+#
+
+# @notice Contract constructor
+# @param fee_to Initial fee recipient
+@constructor
+func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    pair_contract_class_hash : felt, fee_to_setter : felt
+):
+    with_attr error_message("Jediswapv2Factory::constructor::Fee Recipient Setter can not be zero"):
+        assert_not_zero(fee_to_setter)
+    end
+
+    with_attr error_message(
+            "Jediswapv2Factory::constructor::Pair Contract Class Hash can not be zero"):
+        assert_not_zero(pair_contract_class_hash)
+    end
+
+    _fee_to_setter.write(fee_to_setter)
+    _pair_contract_class_hash.write(pair_contract_class_hash)
+    _num_of_pairs.write(0)
+    return ()
+end
+#
+# Getters
+#
+
+# @notice Get pair address for the pair of `token0` and `token1`
+# @param token0 Address of token0
+# @param token1 Address of token1
+# @return pair Address of the pair
+@view
+func get_pair{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    token0 : felt, token1 : felt
+) -> (pair : felt):
+    return _pair.read(token0, token1)
+end
+
+# @notice Get all the pairs registered
+# @return all_pairs_len Length of `all_pairs` array
+# @return all_pairs Array of addresses of the registered pairs
+@view
+func get_all_pairs{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+    all_pairs_len : felt, all_pairs : felt*
+):
+    alloc_locals
+    let (num_pairs) = _num_of_pairs.read()
+    let (local all_pairs : felt*) = alloc()
+    let (all_pairs_end : felt*) = _build_all_pairs_array(0, num_pairs, all_pairs)
+    return (num_pairs, all_pairs)
+end
+
+# @notice Get the length of all pairs
+# @return all_pairs_len
+@view
+func get_all_pairs_len{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+    all_pairs_len : felt
+):
+    let (all_pairs_len) = _num_of_pairs.read()
+    return (all_pairs_len)
+end
+
+# @notice Get fee recipient address
+# @return address
+@view
+func get_fee_to{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+    address : felt
+):
+    return _fee_to.read()
+end
+
+# @notice Get the address allowed to change feeTo.
+# @return address
+@view
+func get_fee_to_setter{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+    address : felt
+):
+    return _fee_to_setter.read()
+end
+
+@view
+func get_pair_contract_class_hash{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
+}() -> (class_hash : felt):
+    return _pair_contract_class_hash.read()
+end
+
+#
+# Setters
+#
+
+# @notice Create2 address from `token0` and `token1` pair to `pair`
+# @param token0 Address of token0
+# @param token1 Address of token1
+@external
+func create_pair{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, bitwise_ptr : BitwiseBuiltin*, range_check_ptr
+}(token0 : felt, token1 : felt) -> (pair : felt):
+    alloc_locals
+    with_attr error_message("Jediswapv2Factory::create_pair::token0 and token1 must be non zero"):
+        assert_not_zero(token0)
+        assert_not_zero(token1)
+    end
+
+    with_attr error_message("Jediswapv2Factory::create_pair::token0 and token1 must be different"):
+        assert_not_equal(token0, token1)
+    end
+
+    let (existing_pair) = _pair.read(token0, token1)
+    with_attr error_message(
+            "Jediswapv2Factory::create_pair::pair already exists for token0 and token1"):
+        assert existing_pair = 0
+    end
+
+    let (class_hash : felt) = _pair_contract_class_hash.read()
+
+    let (tokens : felt*) = alloc()
+    let (local keccak_ptr_start : felt*) = alloc()
+    let keccak_ptr = keccak_ptr_start
+
+    assert [tokens] = token0
+    assert [tokens + 1] = token1
+
+    let (salt : Uint256) = keccak_felts{keccak_ptr=keccak_ptr}(n_elements=2, elements=tokens)
+    finalize_keccak(keccak_ptr_start=keccak_ptr_start, keccak_ptr_end=keccak_ptr)
+
+    let constructor_calldata : felt* = tokens
+
+    let (contract_address : felt) = get_contract_address()
+
+    assert [constructor_calldata + 2] = contract_address
+
+    let (pair : felt) = deploy(
+        class_hash=class_hash,
+        contract_address_salt=salt.low,
+        constructor_calldata_size=3,
+        constructor_calldata=constructor_calldata,
+    )
+
+    _pair.write(token0, token1, pair)
+    _pair.write(token1, token0, pair)
+    let (num_pairs) = _num_of_pairs.read()
+    _all_pairs.write(num_pairs, pair)
+    _num_of_pairs.write(num_pairs + 1)
+    pair_created.emit(token0=token0, token1=token1, pair=pair, total_pairs=num_pairs + 1)
+
+    return (pair=pair)
+end
+
+# @notice Change fee recipient to `fee_to`
+# @dev Only fee_to_setter can change
+# @param fee_to Address of new fee recipient
+@external
+func set_fee_to{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(fee_to : felt):
+    let (sender) = get_caller_address()
+    let (fee_setter) = get_fee_to_setter()
+    with_attr error_message("JediswapV2Factory::set_fee_to::Caller must be fee setter"):
+        assert sender = fee_setter
+    end
+    _fee_to.write(fee_to)
+    return ()
+end
+
+# @notice Change fee setter to `fee_to_setter`
+# @dev Only fee_to_setter can change
+# @param fee_to_setter Address of new fee setter
+@external
+func set_fee_to_setter{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    fee_to_setter : felt
+):
+    let (sender) = get_caller_address()
+    let (fee_setter) = get_fee_to_setter()
+    with_attr error_message("JediswapV2Factory::set_fee_to_setter::Caller must be fee setter"):
+        assert sender = fee_setter
+    end
+    _fee_to_setter.write(fee_to_setter)
+    return ()
+end
+
+#
+# Internals
+#
+func _build_all_pairs_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    current_index : felt, num_pairs : felt, all_pairs : felt*
+) -> (all_pairs : felt*):
+    alloc_locals
+    if current_index == num_pairs:
+        return (all_pairs)
+    end
+    let (current_pair) = _all_pairs.read(current_index)
+    assert [all_pairs] = current_pair
+    return _build_all_pairs_array(current_index + 1, num_pairs, all_pairs + 1)
+end

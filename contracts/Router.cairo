@@ -50,8 +50,8 @@ namespace IPair:
 end
 
 @contract_interface
-namespace IRegistry:
-    func get_pair_for(token0 : felt, token1 : felt) -> (pair : felt):
+namespace IFactory:
+    func get_pair(token0 : felt, token1 : felt) -> (pair : felt):
     end
 end
 
@@ -59,9 +59,9 @@ end
 # Storage
 #
 
-# @dev Registry contract address
+# @dev Factory contract address
 @storage_var
-func _registry() -> (address : felt):
+func _factory() -> (address : felt):
 end
 
 #
@@ -69,15 +69,13 @@ end
 #
 
 # @notice Contract constructor
-# @param registry Address of registry contract
+# @param factory Address of factory contract
 @constructor
-func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    registry : felt
-):
-    with_attr error_message("Router::constructor::registry can not be zero"):
-        assert_not_zero(registry)
+func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(factory : felt):
+    with_attr error_message("Router::constructor::factory can not be zero"):
+        assert_not_zero(factory)
     end
-    _registry.write(registry)
+    _factory.write(factory)
     return ()
 end
 
@@ -85,13 +83,13 @@ end
 # Getters
 #
 
-# @notice Registry address
+# @notice factory address
 # @return address
 @view
-func registry{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+func factory{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
     address : felt
 ):
-    let (address) = _registry.read()
+    let (address) = _factory.read()
     return (address)
 end
 
@@ -154,8 +152,8 @@ func get_amounts_out{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
     amountIn : Uint256, path_len : felt, path : felt*
 ) -> (amounts_len : felt, amounts : Uint256*):
     alloc_locals
-    let (local registry) = _registry.read()
-    let (local amounts : Uint256*) = _get_amounts_out(registry, amountIn, path_len, path)
+    let (local factory) = _factory.read()
+    let (local amounts : Uint256*) = _get_amounts_out(factory, amountIn, path_len, path)
     return (path_len, amounts)
 end
 
@@ -170,8 +168,8 @@ func get_amounts_in{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_chec
     amountOut : Uint256, path_len : felt, path : felt*
 ) -> (amounts_len : felt, amounts : Uint256*):
     alloc_locals
-    let (local registry) = _registry.read()
-    let (local amounts : Uint256*) = _get_amounts_in(registry, amountOut, path_len, path)
+    let (local factory) = _factory.read()
+    let (local amounts : Uint256*) = _get_amounts_in(factory, amountOut, path_len, path)
     return (path_len, amounts)
 end
 
@@ -205,11 +203,11 @@ func add_liquidity{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check
 ) -> (amountA : Uint256, amountB : Uint256, liquidity : Uint256):
     alloc_locals
     _ensure_deadline(deadline)
-    let (local registry) = _registry.read()
+    let (local factory) = _factory.read()
     let (local amountA : Uint256, local amountB : Uint256) = _add_liquidity(
         tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin
     )
-    let (local pair) = _pair_for(registry, tokenA, tokenB)
+    let (local pair) = _pair_for(factory, tokenA, tokenB)
     let (sender) = get_caller_address()
     IERC20.transferFrom(contract_address=tokenA, sender=sender, recipient=pair, amount=amountA)
     IERC20.transferFrom(contract_address=tokenB, sender=sender, recipient=pair, amount=amountB)
@@ -241,8 +239,8 @@ func remove_liquidity{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_ch
 ) -> (amountA : Uint256, amountB : Uint256):
     alloc_locals
     _ensure_deadline(deadline)
-    let (local registry) = _registry.read()
-    let (local pair) = _pair_for(registry, tokenA, tokenB)
+    let (local factory) = _factory.read()
+    let (local pair) = _pair_for(factory, tokenA, tokenB)
     let (sender) = get_caller_address()
     IERC20.transferFrom(contract_address=pair, sender=sender, recipient=pair, amount=liquidity)
     let (local amount0 : Uint256, local amount1 : Uint256) = IPair.burn(
@@ -294,15 +292,15 @@ func swap_exact_tokens_for_tokens{
 ) -> (amounts_len : felt, amounts : Uint256*):
     alloc_locals
     _ensure_deadline(deadline)
-    let (local registry) = _registry.read()
-    let (local amounts : Uint256*) = _get_amounts_out(registry, amountIn, path_len, path)
+    let (local factory) = _factory.read()
+    let (local amounts : Uint256*) = _get_amounts_out(factory, amountIn, path_len, path)
     let (is_amount_last_greater_than_equal_amountOutMin) = uint256_le(
         amountOutMin, [amounts + (path_len - 1) * Uint256.SIZE]
     )
     with_attr error_message("Router::swap_exact_tokens_for_tokens::insufficient output amount"):
         assert is_amount_last_greater_than_equal_amountOutMin = 1
     end
-    let (local pair) = _pair_for(registry, [path], [path + 1])
+    let (local pair) = _pair_for(factory, [path], [path + 1])
     let (sender) = get_caller_address()
     IERC20.transferFrom(contract_address=[path], sender=sender, recipient=pair, amount=[amounts])
     _swap(0, path_len, amounts, path, to)
@@ -332,13 +330,13 @@ func swap_tokens_for_exact_tokens{
 ) -> (amounts_len : felt, amounts : Uint256*):
     alloc_locals
     _ensure_deadline(deadline)
-    let (local registry) = _registry.read()
-    let (local amounts : Uint256*) = _get_amounts_in(registry, amountOut, path_len, path)
+    let (local factory) = _factory.read()
+    let (local amounts : Uint256*) = _get_amounts_in(factory, amountOut, path_len, path)
     let (is_amount_first_less_than_equal_amountInMax) = uint256_le([amounts], amountInMax)
     with_attr error_message("Router::swap_tokens_for_exact_tokens::excessive input amount"):
         assert is_amount_first_less_than_equal_amountInMax = 1
     end
-    let (local pair) = _pair_for(registry, [path], [path + 1])
+    let (local pair) = _pair_for(factory, [path], [path + 1])
     let (sender) = get_caller_address()
     IERC20.transferFrom(contract_address=[path], sender=sender, recipient=pair, amount=[amounts])
     _swap(0, path_len, amounts, path, to)
@@ -368,15 +366,13 @@ func _add_liquidity{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_chec
     amountBMin : Uint256,
 ) -> (amountA : Uint256, amountB : Uint256):
     alloc_locals
-    let (local registry) = _registry.read()
-    let (local pair) = IRegistry.get_pair_for(
-        contract_address=registry, token0=tokenA, token1=tokenB
-    )
+    let (local factory) = _factory.read()
+    let (local pair) = IFactory.get_pair(contract_address=factory, token0=tokenA, token1=tokenB)
     with_attr error_message("Router::_add_liquidity::pair does not exist"):
         assert_not_zero(pair)  # # This will be changed when factory pattern is allowed and we can create pair on the fly
     end
     let (local reserveA : Uint256, local reserveB : Uint256) = _get_reserves(
-        registry, tokenA, tokenB
+        factory, tokenA, tokenB
     )
     let (reserveA_mul_reserveB : Uint256) = uint256_checked_mul(reserveA, reserveB)
     let (is_reserveA_mul_reserveB_equal_to_zero) = uint256_eq(reserveA_mul_reserveB, Uint256(0, 0))
@@ -417,7 +413,7 @@ func _swap{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     current_index : felt, amounts_len : felt, amounts : Uint256*, path : felt*, _to : felt
 ):
     alloc_locals
-    let (local registry) = _registry.read()
+    let (local factory) = _factory.read()
     if current_index == amounts_len - 1:
         return ()
     end
@@ -434,7 +430,7 @@ func _swap{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     local to
     let (is_current_index_less_than_len_2) = is_le(current_index, amounts_len - 3)
     if is_current_index_less_than_len_2 == 1:
-        let (local pair) = _pair_for(registry, [path + 1], [path + 2])
+        let (local pair) = _pair_for(factory, [path + 1], [path + 2])
         assert to = pair
         tempvar syscall_ptr = syscall_ptr
         tempvar pedersen_ptr = pedersen_ptr
@@ -445,7 +441,7 @@ func _swap{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         tempvar pedersen_ptr = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
     end
-    let (local pair) = _pair_for(registry, [path], [path + 1])
+    let (local pair) = _pair_for(factory, [path], [path + 1])
     IPair.swap(
         contract_address=pair, amount0Out=amount0Out, amount1Out=amount1Out, to=to, data_len=0
     )
@@ -473,22 +469,20 @@ func _sort_tokens{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_
 end
 
 func _pair_for{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    registry : felt, tokenA : felt, tokenB : felt
+    factory : felt, tokenA : felt, tokenB : felt
 ) -> (pair : felt):
     alloc_locals
     let (local token0, local token1) = _sort_tokens(tokenA, tokenB)
-    let (local pair) = IRegistry.get_pair_for(
-        contract_address=registry, token0=token0, token1=token1
-    )
+    let (local pair) = IFactory.get_pair(contract_address=factory, token0=token0, token1=token1)
     return (pair)
 end
 
 func _get_reserves{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    registry : felt, tokenA : felt, tokenB : felt
+    factory : felt, tokenA : felt, tokenB : felt
 ) -> (reserveA : Uint256, reserveB : Uint256):
     alloc_locals
     let (local token0, _) = _sort_tokens(tokenA, tokenB)
-    let (local pair) = _pair_for(registry, tokenA, tokenB)
+    let (local pair) = _pair_for(factory, tokenA, tokenB)
     let (local reserve0 : Uint256, local reserve1 : Uint256, _) = IPair.get_reserves(
         contract_address=pair
     )
@@ -574,7 +568,7 @@ func _get_amount_in{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_chec
 end
 
 func _get_amounts_out{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    registry : felt, amountIn : Uint256, path_len : felt, path : felt*
+    factory : felt, amountIn : Uint256, path_len : felt, path : felt*
 ) -> (amounts : Uint256*):
     alloc_locals
     with_attr error_message("Router::_get_amounts_out::invalid path"):
@@ -582,14 +576,14 @@ func _get_amounts_out{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_ch
     end
     let (local amounts_start : Uint256*) = alloc()
     let (amounts_end : Uint256*) = _build_amounts_out(
-        registry, amountIn, 0, path_len, path, amounts_start
+        factory, amountIn, 0, path_len, path, amounts_start
     )
 
     return (amounts_start)
 end
 
 func _build_amounts_out{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    registry : felt,
+    factory : felt,
     amountIn : Uint256,
     current_index : felt,
     path_len : felt,
@@ -608,7 +602,7 @@ func _build_amounts_out{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_
         tempvar range_check_ptr = range_check_ptr
     else:
         let (local reserveIn : Uint256, local reserveOut : Uint256) = _get_reserves(
-            registry, [path - 1], [path]
+            factory, [path - 1], [path]
         )
         let (local amountOut : Uint256) = _get_amount_out(
             [amounts - Uint256.SIZE], reserveIn, reserveOut
@@ -620,12 +614,12 @@ func _build_amounts_out{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_
     end
 
     return _build_amounts_out(
-        registry, amountIn, current_index + 1, path_len, path + 1, amounts + Uint256.SIZE
+        factory, amountIn, current_index + 1, path_len, path + 1, amounts + Uint256.SIZE
     )
 end
 
 func _get_amounts_in{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    registry : felt, amountOut : Uint256, path_len : felt, path : felt*
+    factory : felt, amountOut : Uint256, path_len : felt, path : felt*
 ) -> (amounts : Uint256*):
     alloc_locals
     with_attr error_message("Router::_get_amounts_in::invalid path"):
@@ -633,7 +627,7 @@ func _get_amounts_in{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
     end
     let (local amounts_start : Uint256*) = alloc()
     let (amounts_start_temp : Uint256*) = _build_amounts_in(
-        registry,
+        factory,
         amountOut,
         path_len - 1,
         path_len,
@@ -645,7 +639,7 @@ func _get_amounts_in{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
 end
 
 func _build_amounts_in{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    registry : felt,
+    factory : felt,
     amountOut : Uint256,
     current_index : felt,
     path_len : felt,
@@ -661,7 +655,7 @@ func _build_amounts_in{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_c
         tempvar range_check_ptr = range_check_ptr
     else:
         let (local reserveIn : Uint256, local reserveOut : Uint256) = _get_reserves(
-            registry, [path], [path + 1]
+            factory, [path], [path + 1]
         )
         let (local amountIn : Uint256) = _get_amount_in(
             [amounts + Uint256.SIZE], reserveIn, reserveOut
@@ -677,6 +671,6 @@ func _build_amounts_in{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_c
     end
 
     return _build_amounts_in(
-        registry, amountOut, current_index - 1, path_len, path - 1, amounts - Uint256.SIZE
+        factory, amountOut, current_index - 1, path_len, path - 1, amounts - Uint256.SIZE
     )
 end

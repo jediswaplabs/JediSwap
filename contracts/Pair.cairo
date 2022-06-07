@@ -59,8 +59,8 @@ namespace IERC20:
 end
 
 @contract_interface
-namespace IRegistry:
-    func fee_to() -> (address : felt):
+namespace IFactory:
+    func get_fee_to() -> (address : felt):
     end
 end
 
@@ -155,9 +155,9 @@ end
 func _locked() -> (res : felt):
 end
 
-# @dev Registry contract address
+# @dev Factory contract address
 @storage_var
-func _registry() -> (address : felt):
+func _factory() -> (address : felt):
 end
 
 # @notice An event emitted whenever token is transferred.
@@ -206,25 +206,22 @@ end
 # @param symbol Symbol of the pair token
 # @param token0 Address of token0
 # @param token1 Address of token1
-# @param registry Address of registry contract
+# @param factory Address of factory contract
 @constructor
 func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    name : felt, symbol : felt, token0 : felt, token1 : felt, registry : felt
+    token0 : felt, token1 : felt, factory : felt
 ):
     with_attr error_message("Pair::constructor::all arguments must be non zero"):
-        assert_not_zero(name)
-        assert_not_zero(symbol)
         assert_not_zero(token0)
         assert_not_zero(token1)
-        assert_not_zero(registry)
     end
-    _name.write(name)
-    _symbol.write(symbol)
+    _name.write('Jediswap')
+    _symbol.write('JEDI')
     _decimals.write(18)
     _locked.write(0)
     _token0.write(token0)
     _token1.write(token1)
-    _registry.write(registry)
+    _factory.write(factory)
     return ()
 end
 
@@ -999,8 +996,8 @@ func _mint_protocol_fee{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_
     reserve0 : Uint256, reserve1 : Uint256
 ) -> (fee_on : felt):
     alloc_locals
-    let (local registry) = _registry.read()
-    let (local fee_to) = IRegistry.fee_to(contract_address=registry)
+    let (local factory) = _factory.read()
+    let (local fee_to) = IFactory.get_fee_to(contract_address=factory)
     let (local fee_on) = is_not_zero(fee_to)
 
     let (local klast : Uint256) = _klast.read()

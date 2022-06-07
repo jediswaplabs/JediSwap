@@ -6,14 +6,14 @@ def uint(a):
     return(a, 0)
 
 
-async def initialize_pairs(registry, router, token_0, token_1, token_2, deployer, fee_recipient, user_1, random_acc):
+async def initialize_pairs(factory, router, token_0, token_1, token_2, deployer, fee_recipient, user_1, random_acc):
     user_1_signer, user_1_account = user_1
     random_signer, random_account = random_acc
     deployer_signer, deployer_account = deployer
     fee_recipient_signer, fee_recipient_account = fee_recipient
 
-    print("Update fee to")
-    await deployer_signer.send_transaction(deployer_account, registry.contract_address, 'update_fee_to', [fee_recipient_account.contract_address])
+    print("Set fee to")
+    await deployer_signer.send_transaction(deployer_account, factory.contract_address, 'set_fee_to', [fee_recipient_account.contract_address])
 
     print("\nMint loads of tokens to user_1")
     execution_info = await token_0.decimals().call()
@@ -81,13 +81,13 @@ async def mint_to_user_2(router, token_0, token_1, token_2, user_2, random_acc):
 
 
 @pytest.mark.asyncio
-async def test_protocol_fee(starknet, registry, router, token_0, token_1, token_2, pair, other_pair, deployer, fee_recipient, user_1, user_2, random_acc):
+async def test_protocol_fee(starknet, factory, router, token_0, token_1, token_2, pair, other_pair, deployer, fee_recipient, user_1, user_2, random_acc):
     user_1_signer, user_1_account = user_1
     user_2_signer, user_2_account = user_2
     random_signer, random_account = random_acc
     fee_recipient_signer, fee_recipient_account = fee_recipient
 
-    await initialize_pairs(registry, router, token_0, token_1, token_2, deployer, fee_recipient, user_1, random_acc)
+    await initialize_pairs(factory, router, token_0, token_1, token_2, deployer, fee_recipient, user_1, random_acc)
     await mint_to_user_2(router, token_0, token_1, token_2, user_2, random_acc)
 
     execution_info = await token_0.decimals().call()
