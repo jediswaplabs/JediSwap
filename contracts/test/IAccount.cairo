@@ -13,19 +13,11 @@ namespace IAccount:
     # Business logic
     #
 
-    func is_valid_signature(
-            hash: felt,
-            signature_len: felt,
-            signature: felt*
-        ):
+    func is_valid_signature(hash : felt, signature_len : felt, signature : felt*):
     end
 
     func execute(
-            to: felt,
-            selector: felt,
-            calldata_len: felt,
-            calldata: felt*,
-            nonce: felt
-        ) -> (response_len: felt, response: felt*):
+        to : felt, selector : felt, calldata_len : felt, calldata : felt*, nonce : felt
+    ) -> (response_len : felt, response : felt*):
     end
 end

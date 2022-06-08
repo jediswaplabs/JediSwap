@@ -6,8 +6,10 @@ from utils.Signer import Signer
 pair_name_string = "Mesh Generic Pair"
 pair_symbol_string = "MGP"
 
+
 def uint(a):
     return(a, 0)
+
 
 def str_to_felt(text):
     b_text = bytes(text, 'UTF-8')
@@ -18,10 +20,12 @@ def str_to_felt(text):
 def event_loop():
     return asyncio.new_event_loop()
 
+
 @pytest_asyncio.fixture
 async def starknet():
     starknet = await Starknet.empty()
     return starknet
+
 
 @pytest_asyncio.fixture
 async def deployer(starknet):
@@ -33,6 +37,7 @@ async def deployer(starknet):
 
     return deployer_signer, deployer_account
 
+
 @pytest_asyncio.fixture
 async def random_acc(starknet):
     random_signer = Signer(987654320023456789)
@@ -42,6 +47,7 @@ async def random_acc(starknet):
     )
 
     return random_signer, random_account
+
 
 @pytest_asyncio.fixture
 async def user_1(starknet):
@@ -53,6 +59,7 @@ async def user_1(starknet):
 
     return user_1_signer, user_1_account
 
+
 @pytest_asyncio.fixture
 async def user_2(starknet):
     user_2_signer = Signer(987654331133456789)
@@ -63,6 +70,7 @@ async def user_2(starknet):
 
     return user_2_signer, user_2_account
 
+
 @pytest_asyncio.fixture
 async def fee_recipient(starknet):
     fee_recipient_signer = Signer(987654301103456789)
@@ -71,6 +79,7 @@ async def fee_recipient(starknet):
         constructor_calldata=[fee_recipient_signer.public_key]
     )
     return fee_recipient_signer, fee_recipient_account
+
 
 @pytest_asyncio.fixture
 async def token_0(starknet, random_acc):
@@ -86,6 +95,7 @@ async def token_0(starknet, random_acc):
     )
     return token_0
 
+
 @pytest_asyncio.fixture
 async def token_1(starknet, random_acc):
     random_signer, random_account = random_acc
@@ -99,6 +109,7 @@ async def token_1(starknet, random_acc):
         ]
     )
     return token_1
+
 
 @pytest_asyncio.fixture
 async def token_2(starknet, random_acc):
@@ -114,21 +125,25 @@ async def token_2(starknet, random_acc):
     )
     return token_2
 
+
 @pytest_asyncio.fixture
 async def pair_name():
     return str_to_felt(pair_name_string)
+
 
 @pytest_asyncio.fixture
 async def pair_symbol():
     return str_to_felt(pair_symbol_string)
 
+
 @pytest_asyncio.fixture
 async def registry(starknet, deployer):
     deployer_signer, deployer_account = deployer
     registry = await starknet.deploy("contracts/Registry.cairo", constructor_calldata=[
-            deployer_account.contract_address
-        ])
+        deployer_account.contract_address
+    ])
     return registry
+
 
 @pytest_asyncio.fixture
 async def router(starknet, registry):
@@ -139,6 +154,7 @@ async def router(starknet, registry):
         ]
     )
     return router
+
 
 @pytest_asyncio.fixture
 async def pair(starknet, deployer, pair_name, pair_symbol, token_0, token_1, router, registry):
@@ -157,6 +173,7 @@ async def pair(starknet, deployer, pair_name, pair_symbol, token_0, token_1, rou
     await deployer_signer.send_transaction(deployer_account, registry.contract_address, 'set_pair', [token_0.contract_address, token_1.contract_address, pair.contract_address])
     return pair
 
+
 @pytest_asyncio.fixture
 async def other_pair(starknet, deployer, pair_name, pair_symbol, token_1, token_2, router, registry):
     deployer_signer, deployer_account = deployer
@@ -173,6 +190,7 @@ async def other_pair(starknet, deployer, pair_name, pair_symbol, token_1, token_
     )
     await deployer_signer.send_transaction(deployer_account, registry.contract_address, 'set_pair', [token_1.contract_address, token_2.contract_address, other_pair.contract_address])
     return other_pair
+
 
 @pytest_asyncio.fixture
 async def flash_swap_test(starknet, registry):
