@@ -3,7 +3,7 @@ import json
 import asyncio
 from starkware.starknet.testing.starknet import Starknet, StarknetContract
 from utils.Signer import Signer
-from utils.calculate_class_hash import calculate_class_hash, get_contract_class
+from utils.calculate_class_hash import get_contract_class
 
 pair_name_string = "Jediswap"
 pair_symbol_string = "JEDI"
