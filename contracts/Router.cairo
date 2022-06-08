@@ -53,6 +53,9 @@ end
 namespace IFactory:
     func get_pair(token0 : felt, token1 : felt) -> (pair : felt):
     end
+
+    func create_pair(token0 : felt, token1 : felt) -> (pair : felt):
+    end
 end
 
 #
@@ -368,9 +371,13 @@ func _add_liquidity{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_chec
     alloc_locals
     let (local factory) = _factory.read()
     let (local pair) = IFactory.get_pair(contract_address=factory, token0=tokenA, token1=tokenB)
-    with_attr error_message("Router::_add_liquidity::pair does not exist"):
-        assert_not_zero(pair)  # # This will be changed when factory pattern is allowed and we can create pair on the fly
+
+    if pair == 0:
+        let (new_pair) = IFactory.create_pair(
+            contract_address=factory, token0=tokenA, token1=tokenB
+        )
     end
+
     let (local reserveA : Uint256, local reserveB : Uint256) = _get_reserves(
         factory, tokenA, tokenB
     )

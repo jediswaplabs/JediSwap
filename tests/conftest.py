@@ -1,5 +1,4 @@
 import pytest_asyncio
-import json
 import asyncio
 from starkware.starknet.testing.starknet import Starknet, StarknetContract
 from utils.Signer import Signer
@@ -126,6 +125,21 @@ async def token_2(starknet, random_acc):
         ]
     )
     return token_2
+
+
+@pytest_asyncio.fixture
+async def token_3(starknet, random_acc):
+    random_signer, random_account = random_acc
+    token_3 = await starknet.deploy(
+        "contracts/test/token/ERC20.cairo",
+        constructor_calldata=[
+            str_to_felt("Token 3"),  # name
+            str_to_felt("TOKEN3"),  # symbol
+            18,                     # decimals
+            random_account.contract_address
+        ]
+    )
+    return token_3
 
 
 @pytest_asyncio.fixture
