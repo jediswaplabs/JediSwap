@@ -2,10 +2,10 @@ name: Jediswap AMM Tests
 
 on:
   push:
-    branches:
-      - main
-      - initial_poc
+    branches: [ main, initial_poc ]
   pull_request:
+    branches: [ main, initial_poc ]
+    
 
 jobs:
   test:
@@ -13,17 +13,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Python setup
         uses: actions/setup-python@v3
         with:
           python-version: '3.9'
-          cache: pip
+          cache: 'pip'
           cache-dependency-path: '.github/workflows/requirements-test.txt'
 
       - name: Env setup
         run: pip install -r .github/workflows/requirements-test.txt
 
       - name: Run tests
-        run: pytest --disable-warnings -sv -r A
+        run: pytest --disable-warnings -sv -rA
