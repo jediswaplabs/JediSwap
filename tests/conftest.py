@@ -5,8 +5,8 @@ from starkware.starknet.testing.starknet import Starknet, StarknetContract
 from utils.Signer import Signer
 from utils.calculate_class_hash import get_contract_class
 
-pair_name_string = "Jediswap"
-pair_symbol_string = "JEDI"
+pair_name_string = "Jediswap Pair"
+pair_symbol_string = "JEDI-P"
 
 
 def uint(a):
@@ -150,20 +150,20 @@ async def router(starknet, factory):
 
 
 @pytest_asyncio.fixture
-async def declared_pair_contract(starknet):
+async def declared_pair_class(starknet):
     pair_contract_class = get_contract_class('Pair_compiled.json')
     pair_contract = await starknet.declare(contract_class=pair_contract_class)
     return pair_contract
 
 
 @pytest_asyncio.fixture
-async def factory(starknet, deployer, declared_pair_contract):
+async def factory(starknet, deployer, declared_pair_class):
     deployer_signer, deployer_account = deployer
 
-    print("Class Hash: {}".format(declared_pair_contract.class_hash))
+    print("Class Hash: {}".format(declared_pair_class.class_hash))
 
-    factory = await starknet.deploy("contracts/JediswapV2Factory.cairo", constructor_calldata=[
-        declared_pair_contract.class_hash,
+    factory = await starknet.deploy("contracts/Factory.cairo", constructor_calldata=[
+        declared_pair_class.class_hash,
         deployer_account.contract_address
     ])
 
@@ -171,21 +171,21 @@ async def factory(starknet, deployer, declared_pair_contract):
 
 
 @pytest_asyncio.fixture
-async def pair(starknet, deployer, declared_pair_contract, token_0, token_1, router, factory):
+async def pair(starknet, deployer, declared_pair_class, token_0, token_1, router, factory):
     deployer_signer, deployer_account = deployer
     execution_info = await router.sort_tokens(token_0.contract_address, token_1.contract_address).call()
     pair = await deployer_signer.send_transaction(deployer_account, factory.contract_address, 'create_pair', [execution_info.result.token0, execution_info.result.token1])
     pair_address = pair.result.response[0]
-    return StarknetContract(starknet.state, declared_pair_contract.abi, pair_address, None)
+    return StarknetContract(starknet.state, declared_pair_class.abi, pair_address, None)
 
 
 @pytest_asyncio.fixture
-async def other_pair(starknet, deployer, declared_pair_contract, token_1, token_2, router, factory):
+async def other_pair(starknet, deployer, declared_pair_class, token_1, token_2, router, factory):
     deployer_signer, deployer_account = deployer
     execution_info = await router.sort_tokens(token_1.contract_address, token_2.contract_address).call()
     other_pair = await deployer_signer.send_transaction(deployer_account, factory.contract_address, 'create_pair', [execution_info.result.token0, execution_info.result.token1])
     other_pair_address = other_pair.result.response[0]
-    return StarknetContract(starknet.state, declared_pair_contract.abi, other_pair_address, None)
+    return StarknetContract(starknet.state, declared_pair_class.abi, other_pair_address, None)
 
 
 @pytest_asyncio.fixture

@@ -10,7 +10,7 @@ async def test_set_fee_to_non_owner(factory, random_acc, fee_recipient):
     fee_recipient_signer, fee_recipient_account = fee_recipient
 
     await assert_revert(random_signer.send_transaction(random_account, factory.contract_address, 'set_fee_to', [fee_recipient_account.contract_address]),
-                        "JediswapV2Factory::set_fee_to::Caller must be fee setter")
+                        "Factory::set_fee_to::Caller must be fee setter")
 
 
 @pytest.mark.asyncio

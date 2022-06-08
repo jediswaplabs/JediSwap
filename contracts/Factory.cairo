@@ -62,12 +62,11 @@ end
 func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     pair_contract_class_hash : felt, fee_to_setter : felt
 ):
-    with_attr error_message("Jediswapv2Factory::constructor::Fee Recipient Setter can not be zero"):
+    with_attr error_message("Factory::constructor::Fee Recipient Setter can not be zero"):
         assert_not_zero(fee_to_setter)
     end
 
-    with_attr error_message(
-            "Jediswapv2Factory::constructor::Pair Contract Class Hash can not be zero"):
+    with_attr error_message("Factory::constructor::Pair Contract Class Hash can not be zero"):
         assert_not_zero(pair_contract_class_hash)
     end
 
@@ -105,14 +104,14 @@ func get_all_pairs{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check
     return (num_pairs, all_pairs)
 end
 
-# @notice Get the length of all pairs
-# @return all_pairs_len
+# @notice Get the number of pairs
+# @return num_of_pairs
 @view
-func get_all_pairs_len{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-    all_pairs_len : felt
+func get_num_of_pairs{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+    num_of_pairs : felt
 ):
-    let (all_pairs_len) = _num_of_pairs.read()
-    return (all_pairs_len)
+    let (num_of_pairs) = _num_of_pairs.read()
+    return (num_of_pairs)
 end
 
 # @notice Get fee recipient address
@@ -152,18 +151,17 @@ func create_pair{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, bitwise_ptr : BitwiseBuiltin*, range_check_ptr
 }(token0 : felt, token1 : felt) -> (pair : felt):
     alloc_locals
-    with_attr error_message("Jediswapv2Factory::create_pair::token0 and token1 must be non zero"):
+    with_attr error_message("Factory::create_pair::token0 and token1 must be non zero"):
         assert_not_zero(token0)
         assert_not_zero(token1)
     end
 
-    with_attr error_message("Jediswapv2Factory::create_pair::token0 and token1 must be different"):
+    with_attr error_message("Factory::create_pair::token0 and token1 must be different"):
         assert_not_equal(token0, token1)
     end
 
     let (existing_pair) = _pair.read(token0, token1)
-    with_attr error_message(
-            "Jediswapv2Factory::create_pair::pair already exists for token0 and token1"):
+    with_attr error_message("Factory::create_pair::pair already exists for token0 and token1"):
         assert existing_pair = 0
     end
 
@@ -209,7 +207,7 @@ end
 func set_fee_to{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(fee_to : felt):
     let (sender) = get_caller_address()
     let (fee_setter) = get_fee_to_setter()
-    with_attr error_message("JediswapV2Factory::set_fee_to::Caller must be fee setter"):
+    with_attr error_message("Factory::set_fee_to::Caller must be fee setter"):
         assert sender = fee_setter
     end
     _fee_to.write(fee_to)
@@ -221,14 +219,14 @@ end
 # @param fee_to_setter Address of new fee setter
 @external
 func set_fee_to_setter{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    fee_to_setter : felt
+    new_fee_to_setter : felt
 ):
     let (sender) = get_caller_address()
-    let (fee_setter) = get_fee_to_setter()
-    with_attr error_message("JediswapV2Factory::set_fee_to_setter::Caller must be fee setter"):
-        assert sender = fee_setter
+    let (fee_to_setter) = get_fee_to_setter()
+    with_attr error_message("Factory::set_fee_to_setter::Caller must be fee setter"):
+        assert sender = fee_to_setter
     end
-    _fee_to_setter.write(fee_to_setter)
+    _fee_to_setter.write(new_fee_to_setter)
     return ()
 end
 
