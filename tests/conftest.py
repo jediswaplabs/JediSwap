@@ -165,7 +165,7 @@ async def router(starknet, factory):
 
 @pytest_asyncio.fixture
 async def declared_pair_class(starknet):
-    pair_contract_class = get_contract_class('Pair_compiled.json')
+    pair_contract_class = get_contract_class('Pair.json')
     pair_contract = await starknet.declare(contract_class=pair_contract_class)
     return pair_contract
 
