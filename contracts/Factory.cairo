@@ -10,7 +10,7 @@ from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.cairo_keccak.keccak import keccak_felts, finalize_keccak
 from starkware.cairo.common.math import assert_not_zero, assert_not_equal
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.common.math_cmp import is_le, is_le_felt
 
 #
 # Storage
@@ -143,37 +143,37 @@ end
 # Setters
 #
 
-# @notice Create2 address from `token0` and `token1` pair to `pair`
-# @param token0 Address of token0
-# @param token1 Address of token1
+# @notice Create2 address from `tokenA` and `tokenB` pair to `pair`
+# @param tokenA Address of tokenA
+# @param tokenB Address of tokenB
 @external
 func create_pair{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, bitwise_ptr : BitwiseBuiltin*, range_check_ptr
-}(token0 : felt, token1 : felt) -> (pair : felt):
+}(tokenA : felt, tokenB : felt) -> (pair : felt):
     alloc_locals
-    with_attr error_message("Factory::create_pair::token0 and token1 must be non zero"):
-        assert_not_zero(token0)
-        assert_not_zero(token1)
+    with_attr error_message("Factory::create_pair::tokenA and tokenB must be non zero"):
+        assert_not_zero(tokenA)
+        assert_not_zero(tokenB)
     end
 
-    with_attr error_message("Factory::create_pair::token0 and token1 must be different"):
-        assert_not_equal(token0, token1)
+    with_attr error_message("Factory::create_pair::tokenA and tokenB must be different"):
+        assert_not_equal(tokenA, tokenB)
     end
 
-    let (existing_pair) = _pair.read(token0, token1)
-    with_attr error_message("Factory::create_pair::pair already exists for token0 and token1"):
+    let (existing_pair) = _pair.read(tokenA, tokenB)
+    with_attr error_message("Factory::create_pair::pair already exists for tokenA and tokenB"):
         assert existing_pair = 0
     end
-
     let (class_hash : felt) = _pair_contract_class_hash.read()
 
-    let (tokens : felt*) = alloc()
-    let (local keccak_ptr_start : felt*) = alloc()
-    let keccak_ptr = keccak_ptr_start
+    let (token0, token1) = _sort_tokens(tokenA, tokenB)
 
+    let (tokens : felt*) = alloc()
     assert [tokens] = token0
     assert [tokens + 1] = token1
 
+    let (local keccak_ptr_start : felt*) = alloc()
+    let keccak_ptr = keccak_ptr_start
     let (salt : Uint256) = keccak_felts{keccak_ptr=keccak_ptr}(n_elements=2, elements=tokens)
     finalize_keccak(keccak_ptr_start=keccak_ptr_start, keccak_ptr_end=keccak_ptr)
 
@@ -231,8 +231,9 @@ func set_fee_to_setter{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_c
 end
 
 #
-# Internals
+# Internals LIBRARY
 #
+
 func _build_all_pairs_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     current_index : felt, num_pairs : felt, all_pairs : felt*
 ) -> (all_pairs : felt*):
@@ -243,4 +244,24 @@ func _build_all_pairs_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, ra
     let (current_pair) = _all_pairs.read(current_index)
     assert [all_pairs] = current_pair
     return _build_all_pairs_array(current_index + 1, num_pairs, all_pairs + 1)
+end
+
+func _sort_tokens{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    tokenA : felt, tokenB : felt
+) -> (token0 : felt, token1 : felt):
+    alloc_locals
+    local token0
+    local token1
+    assert_not_equal(tokenA, tokenB)
+    let (is_tokenA_less_than_tokenB) = is_le_felt(tokenA, tokenB)
+    if is_tokenA_less_than_tokenB == 1:
+        assert token0 = tokenA
+        assert token1 = tokenB
+    else:
+        assert token0 = tokenB
+        assert token1 = tokenA
+    end
+
+    assert_not_zero(token0)
+    return (token0, token1)
 end
