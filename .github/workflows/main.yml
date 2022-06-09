@@ -25,5 +25,8 @@ jobs:
       - name: Env setup
         run: pip install -r .github/workflows/requirements-test.txt
 
+      - name: Compile all contracts
+        run: nile compile
+
       - name: Run tests
         run: pytest --disable-warnings -sv -rA
