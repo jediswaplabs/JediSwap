@@ -1,6 +1,6 @@
 %lang starknet
 
-# @title Jediswap router for stateless execution of swaps
+# @title JediSwap router for stateless execution of swaps
 # @author Mesh Finance
 # @license MIT
 # @dev Based on the Uniswap V2 Router

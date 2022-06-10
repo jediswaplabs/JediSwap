@@ -1,4 +1,4 @@
-name: Jediswap AMM Tests
+name: JediSwap AMM Tests
 
 on:
   push:

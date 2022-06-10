@@ -1,6 +1,6 @@
 %lang starknet
 
-# @title Jediswap Pair
+# @title JediSwap Pair
 # @author Mesh Finance
 # @license MIT
 # @notice Low level pair contract
@@ -215,7 +215,7 @@ func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         assert_not_zero(token0)
         assert_not_zero(token1)
     end
-    _name.write('Jediswap Pair')
+    _name.write('JediSwap Pair')
     _symbol.write('JEDI-P')
     _decimals.write(18)
     _locked.write(0)

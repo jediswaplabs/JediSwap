@@ -1,8 +1,9 @@
 %lang starknet
 
-# @title Jediswap V2 Factory
+# @title JediSwap V2 Factory
 # @author Mesh Finance
 # @license MIT
+# @notice Factory to create and register new pairs
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
 from starkware.starknet.common.syscalls import get_caller_address, deploy, get_contract_address
@@ -123,7 +124,7 @@ func get_fee_to{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
     return _fee_to.read()
 end
 
-# @notice Get the address allowed to change feeTo.
+# @notice Get the address allowed to change fee_to.
 # @return address
 @view
 func get_fee_to_setter{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
@@ -143,9 +144,11 @@ end
 # Setters
 #
 
-# @notice Create2 address from `tokenA` and `tokenB` pair to `pair`
+# @notice Create pair of `tokenA` and `tokenB` with deterministic address using deploy
+# @dev tokens are sorted before creating pair
 # @param tokenA Address of tokenA
 # @param tokenB Address of tokenB
+# @return pair Address of the created pair
 @external
 func create_pair{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, bitwise_ptr : BitwiseBuiltin*, range_check_ptr

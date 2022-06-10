@@ -4,7 +4,7 @@ from starkware.starknet.testing.starknet import Starknet, StarknetContract
 from utils.Signer import Signer
 from utils.calculate_class_hash import get_contract_class
 
-pair_name_string = "Jediswap Pair"
+pair_name_string = "JediSwap Pair"
 pair_symbol_string = "JEDI-P"
 
 
@@ -153,19 +153,8 @@ async def pair_symbol():
 
 
 @pytest_asyncio.fixture
-async def router(starknet, factory):
-    router = await starknet.deploy(
-        "contracts/Router.cairo",
-        constructor_calldata=[
-            factory.contract_address
-        ]
-    )
-    return router
-
-
-@pytest_asyncio.fixture
 async def declared_pair_class(starknet):
-    pair_contract_class = get_contract_class('Pair.json')
+    pair_contract_class = get_contract_class("Pair.json")
     pair_contract = await starknet.declare(contract_class=pair_contract_class)
     return pair_contract
 
@@ -176,12 +165,24 @@ async def factory(starknet, deployer, declared_pair_class):
 
     print("Class Hash: {}".format(declared_pair_class.class_hash))
 
-    factory = await starknet.deploy("contracts/Factory.cairo", constructor_calldata=[
+    factory = await starknet.deploy("contracts/Factory.cairo",
+     constructor_calldata=[
         declared_pair_class.class_hash,
         deployer_account.contract_address
     ])
 
     return factory
+
+
+@pytest_asyncio.fixture
+async def router(starknet, factory):
+    router = await starknet.deploy(
+        "contracts/Router.cairo",
+        constructor_calldata=[
+            factory.contract_address
+        ]
+    )
+    return router
 
 
 @pytest_asyncio.fixture
