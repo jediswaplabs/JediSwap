@@ -1,10 +1,11 @@
 import pytest
-import asyncio
 import math
 from utils.events import get_event_data
 from utils.revert import assert_revert
+from utils.create2_address import get_create2_address
 from starkware.starknet.business_logic.state.state import BlockInfo
 from starkware.starknet.testing.starknet import StarknetContract
+
 
 MINIMUM_LIQUIDITY = 1000
 BURN_ADDRESS = 1
@@ -260,10 +261,9 @@ async def test_add_remove_liquidity_for_new_pair(starknet, router, declared_pair
 
     sort_info = await router.sort_tokens(token_0.contract_address, token_3.contract_address).call()
 
-    # Get Pair address of new created pair from Factory
-    pair_info = await factory.get_pair(token_0.contract_address, token_3.contract_address).call()
-
-    pair_address = pair_info.result.pair
+    # Determine the pair address of newly created pair
+    pair_address = get_create2_address(
+        sort_info.result.token0, sort_info.result.token1, factory.contract_address, declared_pair_class.class_hash)
 
     pair = StarknetContract(
         starknet.state, declared_pair_class.abi, pair_address, None)
