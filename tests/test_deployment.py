@@ -71,8 +71,6 @@ async def test_create2_deployed_pair(deployer, declared_pair_class, token_0, tok
 
     assert create2_pair_address == pair_address
 
-    return create2_pair_address
-
 
 def to_uint(a):
     """Takes in value, returns uint256-ish tuple."""
