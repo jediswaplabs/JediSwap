@@ -1,8 +1,9 @@
 import pytest
-from starkware.starknet.core.os.contract_address.contract_address import calculate_contract_address, calculate_contract_address_from_hash
+from starkware.starknet.core.os.contract_address.contract_address import calculate_contract_address_from_hash
 from Crypto.Hash import keccak
 from starkware.python.utils import to_bytes, from_bytes
-from starkware.cairo.common.cairo_keccak.keccak_utils import keccak_func, keccak_f
+
+from utils.uint import to_uint
 
 
 @pytest.mark.asyncio
@@ -70,8 +71,3 @@ async def test_create2_deployed_pair(deployer, declared_pair_class, token_0, tok
         create2_pair_address, pair_address))
 
     assert create2_pair_address == pair_address
-
-
-def to_uint(a):
-    """Takes in value, returns uint256-ish tuple."""
-    return (a & ((1 << 128) - 1), a >> 128)
