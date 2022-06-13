@@ -50,8 +50,7 @@ async def test_create2_deployed_pair(deployer, declared_pair_class, token_0, tok
     token0_byte_address = to_bytes(sorted_token_0, None, 'little')
     token1_byte_address = to_bytes(sorted_token_1, None, 'little')
 
-    salt.update(token0_byte_address)
-    salt.update(token1_byte_address)
+    salt.update(token0_byte_address + token1_byte_address)
 
     constructor_calldata = [sorted_token_0,
                             sorted_token_1, factory.contract_address]
