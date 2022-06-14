@@ -8,11 +8,10 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
 from starkware.starknet.common.syscalls import get_caller_address, deploy, get_contract_address
 from starkware.cairo.common.uint256 import Uint256
-from starkware.cairo.common.cairo_keccak.keccak import keccak_felts, finalize_keccak
+from starkware.cairo.common.hash import hash2
 from starkware.cairo.common.math import assert_not_zero, assert_not_equal
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math_cmp import is_le, is_le_felt
-
 #
 # Storage
 #
@@ -171,24 +170,22 @@ func create_pair{
 
     let (token0, token1) = _sort_tokens(tokenA, tokenB)
 
-    let (tokens : felt*) = alloc()
-    assert [tokens] = token0
-    assert [tokens + 1] = token1
-
-    let (local keccak_ptr_start : felt*) = alloc()
-    let keccak_ptr = keccak_ptr_start
-    let (salt : Uint256) = keccak_felts{keccak_ptr=keccak_ptr}(n_elements=2, elements=tokens)
-    finalize_keccak(keccak_ptr_start=keccak_ptr_start, keccak_ptr_end=keccak_ptr)
-
-    let constructor_calldata : felt* = tokens
-
     let (contract_address : felt) = get_contract_address()
+
+    tempvar pedersen_ptr = pedersen_ptr
+
+    let (salt) = hash2{hash_ptr=pedersen_ptr}(token0, token1)
+
+    let constructor_calldata : felt* = alloc()
+
+    assert [constructor_calldata] = token0
+    assert [constructor_calldata + 1] = token1
 
     assert [constructor_calldata + 2] = contract_address
 
     let (pair : felt) = deploy(
         class_hash=class_hash,
-        contract_address_salt=salt.low,
+        contract_address_salt=salt,
         constructor_calldata_size=3,
         constructor_calldata=constructor_calldata,
     )
