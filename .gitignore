@@ -1,5 +1,5 @@
 artifacts/
-scripts/
+scripts/config/testnet*.py
 localhost.*
 
 # Byte-compiled / optimized / DLL files

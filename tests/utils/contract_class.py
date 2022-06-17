@@ -19,12 +19,8 @@ def get_contract_class(class_location):
 
 def calculate_class_hash(class_location):
     contract_class = get_contract_class(class_location)
-    contract_hash = compute_class_hash(
+    class_hash = compute_class_hash(
         contract_class=contract_class,
     )
-    # print("{} class hash: {}".format(class_location, hex(contract_hash)))
 
-    return contract_hash
-
-
-# list(map(calculate_class_hash, json_files))
+    return class_hash

@@ -2,7 +2,7 @@ import pytest_asyncio
 import asyncio
 from starkware.starknet.testing.starknet import Starknet, StarknetContract
 from utils.Signer import Signer
-from utils.calculate_class_hash import get_contract_class
+from utils.contract_class import get_contract_class
 
 pair_name_string = "JediSwap Pair"
 pair_symbol_string = "JEDI-P"
@@ -155,8 +155,8 @@ async def pair_symbol():
 @pytest_asyncio.fixture
 async def declared_pair_class(starknet):
     pair_contract_class = get_contract_class("Pair.json")
-    pair_contract = await starknet.declare(contract_class=pair_contract_class)
-    return pair_contract
+    declared_pair_class = await starknet.declare(contract_class=pair_contract_class)
+    return declared_pair_class
 
 
 @pytest_asyncio.fixture
