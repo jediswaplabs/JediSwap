@@ -1,6 +1,4 @@
 import pytest
-from starkware.starknet.core.os.contract_address.contract_address import calculate_contract_address_from_hash
-from starkware.cairo.lang.vm.crypto import pedersen_hash
 
 
 @pytest.mark.asyncio
@@ -30,50 +28,3 @@ async def test_pair_in_factory(factory, token_0, token_1, pair, other_pair):
 async def test_factory_in_router(factory, router):
     execution_info = await router.factory().call()
     assert execution_info.result.address == factory.contract_address
-
-
-@pytest.mark.asyncio
-async def test_create2_deployed_pair(deployer, declared_pair_class, token_0, token_3, factory, router):
-
-    """Test a factory deployed pair address with calculated pair address"""
-
-    deployer_signer, deployer_account = deployer
-    execution_info = await router.sort_tokens(token_0.contract_address, token_3.contract_address).call()
-
-    sorted_token_0 = execution_info.result.token0
-    sorted_token_1 = execution_info.result.token1
-
-    salt = pedersen_hash(sorted_token_0, sorted_token_1)
-
-    constructor_calldata = [sorted_token_0,
-                            sorted_token_1, factory.contract_address]
-
-    create2_pair_address = calculate_contract_address_from_hash(
-        salt=salt, class_hash=declared_pair_class.class_hash, deployer_address=factory.contract_address, constructor_calldata=constructor_calldata)
-
-    pair = await deployer_signer.send_transaction(deployer_account, factory.contract_address, 'create_pair', [sorted_token_0, sorted_token_1])
-
-    pair_address = pair.result.response[0]
-
-    print("Create2 Pair address: {}, Actual address: {}". format(
-        create2_pair_address, pair_address))
-
-    assert create2_pair_address == pair_address
-
-
-@pytest.mark.asyncio
-async def test_create_pair_performance(deployer, token_0, token_1, router, factory):
-    deployer_signer, deployer_account = deployer
-    execution_info = await router.sort_tokens(token_0.contract_address, token_1.contract_address).call()
-    pair = await deployer_signer.send_transaction(deployer_account, factory.contract_address, 'create_pair', [execution_info.result.token0, execution_info.result.token1])
-    print(pair.call_info.execution_resources)
-
-
-@pytest.mark.asyncio
-def test_salt():
-    sorted_token_0 = 2087021424722619777119509474943472645767659996348769578120564519014510906823
-    sorted_token_1 = 1767481910113252210994791615708990276342505294349567333924577048691453030089
-    salt = pedersen_hash(sorted_token_0, sorted_token_1)
-    print("Salt: {}".format(str(salt)))
-
-    assert salt == 3190531016477750283662426342216626187248855880035896941162231379006066586650
