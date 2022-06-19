@@ -13,7 +13,6 @@ testnet_network = "https://alpha4.starknet.io"
 tokens = []
 
 async def main():
-    print(len(sys.argv), str(sys.argv))
     network_arg = sys.argv[1]
 
     current_network = local_network

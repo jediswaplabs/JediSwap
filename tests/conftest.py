@@ -163,8 +163,6 @@ async def declared_pair_class(starknet):
 async def factory(starknet, deployer, declared_pair_class):
     deployer_signer, deployer_account = deployer
 
-    print("Class Hash: {}".format(declared_pair_class.class_hash))
-
     factory = await starknet.deploy("contracts/Factory.cairo",
      constructor_calldata=[
         declared_pair_class.class_hash,
