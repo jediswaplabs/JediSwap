@@ -27,23 +27,21 @@ namespace IPair:
 end
 
 @contract_interface
-namespace IRegistry:
-    func get_pair_for(token0 : felt, token1 : felt) -> (pair : felt):
+namespace IFactory:
+    func get_pair(token0 : felt, token1 : felt) -> (pair : felt):
     end
 end
 
 @storage_var
-func _registry() -> (address : felt):
+func _factory() -> (address : felt):
 end
 
 @constructor
-func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    registry : felt
-):
-    with_attr error_message("Router::constructor::registry can not be zero"):
-        assert_not_zero(registry)
+func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(factory : felt):
+    with_attr error_message("Router::constructor::factory can not be zero"):
+        assert_not_zero(factory)
     end
-    _registry.write(registry)
+    _factory.write(factory)
     return ()
 end
 
@@ -57,10 +55,8 @@ func jediswap_call{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check
 
     let (local token0) = IPair.token0(contract_address=caller)
     let (local token1) = IPair.token1(contract_address=caller)
-    let (local registry) = _registry.read()
-    let (local pair) = IRegistry.get_pair_for(
-        contract_address=registry, token0=token0, token1=token1
-    )
+    let (local factory) = _factory.read()
+    let (local pair) = IFactory.get_pair(contract_address=factory, token0=token0, token1=token1)
 
     with_attr error_message("FlashSwapTest::jediswap_call::Only valid pair can call"):
         assert pair = caller
