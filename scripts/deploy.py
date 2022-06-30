@@ -15,8 +15,6 @@ tokens = []
 async def main():
     network_arg = sys.argv[1]
 
-    current_network = local_network
-
     if network_arg == 'local':
         from config.local import DEPLOYER, deployer_address, factory_address, router_address, token_addresses_and_decimals, max_fee
         current_network = local_network
@@ -26,8 +24,8 @@ async def main():
         else:
             deployer = AccountClient(address=deployer_address, key_pair=KeyPair.from_private_key(DEPLOYER),  net=current_network, chain=StarknetChainId.TESTNET)
     elif network_arg == 'testnet':
-        from config.testnet import DEPLOYER, deployer_address, factory_address, router_address, token_addresses_and_decimals, max_fee
-        current_network == testnet_network
+        from config.testnet_none import DEPLOYER, deployer_address, factory_address, router_address, token_addresses_and_decimals, max_fee
+        current_network = testnet_network
         current_client = Client('testnet')
         if deployer_address is None:
             deployer = await AccountClient.create_account('testnet', DEPLOYER)
@@ -48,6 +46,8 @@ async def main():
     else:
         factory = await Contract.from_address(factory_address, current_client)
     print(f"Factory deployed: {factory.address}, {hex(factory.address)}")
+    result = await factory.functions["get_fee_to_setter"].call()
+    print(f"get_fee_to_setter: {result.address}")
 
     if router_address is None:
         deployment_result = await Contract.deploy(client=current_client, compiled_contract=Path("artifacts/Router.json").read_text(), constructor_args=[factory.address])
@@ -63,18 +63,18 @@ async def main():
         token = await deploy_or_get_token(current_client, token_address, token_decimals, deployer, max_fee)
         tokens.append(token)
 
-    to_create_pairs_array = [
-        (tokens[0], tokens[1], 10 ** 8, int((10 ** 8) / 2)), 
-        # (token_0, token_2, 10 ** 8, (10 ** 8) * 2),
-        # (token_0, token_3, 0.000162, 0.5),
-        # (token_3, token_1, 10 ** 8, int((10 ** 8) / 2)),
-        # (token_3, token_2, 10 ** 8, (10 ** 8) * 2)
-        ]
+    # to_create_pairs_array = [
+    #     (tokens[0], tokens[1], 10 ** 8, int((10 ** 8) / 2)), 
+    #     (tokens[0], tokens[2], 10 ** 8, (10 ** 8) * 2),
+    #     (tokens[0], tokens[3], 0.000162, 0.5),
+    #     (tokens[3], tokens[1], 10 ** 8, int((10 ** 8) / 2)),
+    #     (tokens[3], tokens[2], 10 ** 8, (10 ** 8) * 2)
+    #     ]
 
-    for (token0, token1, amount0, amount1) in to_create_pairs_array:
+    # for (token0, token1, amount0, amount1) in to_create_pairs_array:
         
         ## Set pair
-        pair = await create_or_get_pair(current_client, factory, token0, token1, deployer, max_fee)
+        # pair = await create_or_get_pair(current_client, factory, token0, token1, deployer, max_fee)
 
         ## Add liquidity
         # await add_liquidity_to_pair(router, pair, token0, token1, amount0, amount1, deployer, max_fee)

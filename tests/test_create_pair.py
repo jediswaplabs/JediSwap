@@ -85,7 +85,7 @@ async def test_create_pair_performance(deployer, token_0, token_1, router, facto
 
 
 @pytest.mark.asyncio
-def test_salt():
+async def test_salt():
     sorted_token_0 = 2087021424722619777119509474943472645767659996348769578120564519014510906823
     sorted_token_1 = 1767481910113252210994791615708990276342505294349567333924577048691453030089
     salt = pedersen_hash(sorted_token_0, sorted_token_1)

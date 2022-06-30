@@ -132,6 +132,8 @@ func get_fee_to_setter{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_c
     return _fee_to_setter.read()
 end
 
+# @notice Get the class hash of the Pair contract which is deployed for each pair.
+# @return class_hash
 @view
 func get_pair_contract_class_hash{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
@@ -180,7 +182,6 @@ func create_pair{
 
     assert [constructor_calldata] = token0
     assert [constructor_calldata + 1] = token1
-
     assert [constructor_calldata + 2] = contract_address
 
     let (pair : felt) = deploy(
@@ -200,17 +201,17 @@ func create_pair{
     return (pair=pair)
 end
 
-# @notice Change fee recipient to `fee_to`
+# @notice Change fee recipient to `new_fee_to`
 # @dev Only fee_to_setter can change
 # @param fee_to Address of new fee recipient
 @external
-func set_fee_to{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(fee_to : felt):
+func set_fee_to{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(new_fee_to : felt):
     let (sender) = get_caller_address()
-    let (fee_setter) = get_fee_to_setter()
-    with_attr error_message("Factory::set_fee_to::Caller must be fee setter"):
-        assert sender = fee_setter
+    let (fee_to_setter) = get_fee_to_setter()
+    with_attr error_message("Factory::set_fee_to::Caller must be fee to setter"):
+        assert sender = fee_to_setter
     end
-    _fee_to.write(fee_to)
+    _fee_to.write(new_fee_to)
     return ()
 end
 
@@ -223,8 +224,11 @@ func set_fee_to_setter{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_c
 ):
     let (sender) = get_caller_address()
     let (fee_to_setter) = get_fee_to_setter()
-    with_attr error_message("Factory::set_fee_to_setter::Caller must be fee setter"):
+    with_attr error_message("Factory::set_fee_to_setter::Caller must be fee to setter"):
         assert sender = fee_to_setter
+    end
+    with_attr error_message("Factory::set_fee_to_setter::new_fee_to_setter must be non zero"):
+        assert_not_zero(new_fee_to_setter)
     end
     _fee_to_setter.write(new_fee_to_setter)
     return ()
