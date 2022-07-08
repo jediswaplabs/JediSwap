@@ -6,6 +6,7 @@ from starknet_py.net.models import StarknetChainId
 from pathlib import Path
 from base_funcs import *
 import sys
+import requests
 
 # Local network
 local_network = "http://127.0.0.1:5050"
@@ -21,6 +22,9 @@ async def main():
         current_client = Client(current_network, chain=StarknetChainId.TESTNET)
         if deployer_address is None:
             deployer = await AccountClient.create_account(current_network, DEPLOYER, chain=StarknetChainId.TESTNET)
+            mint_json = {"address": hex(deployer.address), "amount": 10**18}
+            url = f"{local_network}/mint" 
+            x = requests.post(url, json = mint_json)
         else:
             deployer = AccountClient(address=deployer_address, key_pair=KeyPair.from_private_key(DEPLOYER),  net=current_network, chain=StarknetChainId.TESTNET)
     elif network_arg == 'testnet':
@@ -46,8 +50,6 @@ async def main():
     else:
         factory = await Contract.from_address(factory_address, current_client)
     print(f"Factory deployed: {factory.address}, {hex(factory.address)}")
-    result = await factory.functions["get_fee_to_setter"].call()
-    print(f"get_fee_to_setter: {result.address}")
 
     if router_address is None:
         deployment_result = await Contract.deploy(client=current_client, compiled_contract=Path("artifacts/Router.json").read_text(), constructor_args=[factory.address])
@@ -59,25 +61,28 @@ async def main():
 
     ## Deploy and Mint tokens
     
-    for (token_address, token_decimals) in token_addresses_and_decimals:
+    for (token_address, token_decimals) in token_addresses_and_decimals[0:2]:
         token = await deploy_or_get_token(current_client, token_address, token_decimals, deployer, max_fee)
         tokens.append(token)
 
-    # to_create_pairs_array = [
-    #     (tokens[0], tokens[1], 10 ** 8, int((10 ** 8) / 2)), 
-    #     (tokens[0], tokens[2], 10 ** 8, (10 ** 8) * 2),
-    #     (tokens[0], tokens[3], 0.000162, 0.5),
-    #     (tokens[3], tokens[1], 10 ** 8, int((10 ** 8) / 2)),
-    #     (tokens[3], tokens[2], 10 ** 8, (10 ** 8) * 2)
-    #     ]
+    to_create_pairs_array = [
+        (tokens[0], tokens[1], 10 ** 8, int((10 ** 8) / 2)), 
+        # (tokens[0], tokens[2], 10 ** 8, (10 ** 8) * 2),
+        # (tokens[0], tokens[3], 0.000162, 0.5),
+        # (tokens[3], tokens[1], 10 ** 8, int((10 ** 8) / 2)),
+        # (tokens[3], tokens[2], 10 ** 8, (10 ** 8) * 2)
+        ]
 
-    # for (token0, token1, amount0, amount1) in to_create_pairs_array:
+    for (token0, token1, amount0, amount1) in to_create_pairs_array:
         
-        ## Set pair
-        # pair = await create_or_get_pair(current_client, factory, token0, token1, deployer, max_fee)
+        # Set pair
+        # await create_or_get_pair(current_client, factory, token0, token1, deployer, max_fee)
 
-        ## Add liquidity
-        # await add_liquidity_to_pair(router, pair, token0, token1, amount0, amount1, deployer, max_fee)
+        # Add liquidity
+        await add_liquidity_to_pair(current_client, factory, router, token0, token1, amount0, amount1, deployer, max_fee)
+
+        # Swap
+        await swap_token0_to_token1(current_client, factory, router, token0, token1, amount0/20, deployer, max_fee)
 
 
 if __name__ == "__main__":
