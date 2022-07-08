@@ -1,7 +1,7 @@
 import pytest_asyncio
 import asyncio
 from starkware.starknet.testing.starknet import Starknet, StarknetContract
-from utils.Signer import Signer
+from utils.Signer import MockSigner
 from utils.contract_class import get_contract_class
 
 pair_name_string = "JediSwap Pair"
@@ -30,7 +30,7 @@ async def starknet():
 
 @pytest_asyncio.fixture
 async def deployer(starknet):
-    deployer_signer = Signer(123456789987654321)
+    deployer_signer = MockSigner(123456789987654321)
     deployer_account = await starknet.deploy(
         "contracts/test/Account.cairo",
         constructor_calldata=[deployer_signer.public_key]
@@ -41,7 +41,7 @@ async def deployer(starknet):
 
 @pytest_asyncio.fixture
 async def random_acc(starknet):
-    random_signer = Signer(987654320023456789)
+    random_signer = MockSigner(987654320023456789)
     random_account = await starknet.deploy(
         "contracts/test/Account.cairo",
         constructor_calldata=[random_signer.public_key]
@@ -52,7 +52,7 @@ async def random_acc(starknet):
 
 @pytest_asyncio.fixture
 async def user_1(starknet):
-    user_1_signer = Signer(987654321123456789)
+    user_1_signer = MockSigner(987654321123456789)
     user_1_account = await starknet.deploy(
         "contracts/test/Account.cairo",
         constructor_calldata=[user_1_signer.public_key]
@@ -63,7 +63,7 @@ async def user_1(starknet):
 
 @pytest_asyncio.fixture
 async def user_2(starknet):
-    user_2_signer = Signer(987654331133456789)
+    user_2_signer = MockSigner(987654331133456789)
     user_2_account = await starknet.deploy(
         "contracts/test/Account.cairo",
         constructor_calldata=[user_2_signer.public_key]
@@ -74,7 +74,7 @@ async def user_2(starknet):
 
 @pytest_asyncio.fixture
 async def fee_recipient(starknet):
-    fee_recipient_signer = Signer(987654301103456789)
+    fee_recipient_signer = MockSigner(987654301103456789)
     fee_recipient_account = await starknet.deploy(
         "contracts/test/Account.cairo",
         constructor_calldata=[fee_recipient_signer.public_key]
