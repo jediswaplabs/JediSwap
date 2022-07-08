@@ -24,3 +24,21 @@ To distribute tests across multiple CPUs to speed up test execution:
 ```
 pytest -s -v -n auto
 ```
+
+### Run Scripts
+
+#### Additional Dependencies
+
+* [starknet.py](https://github.com/software-mansion/starknet.py)
+
+All scripts are placed in ```scripts``` folder. testnet config is not committed, please create your own in ```scripts/config```
+
+Example:
+```
+python scripts/deploy.py local
+```
+
+To run scripts on local system, you need to run a devnet server:
+```
+starknet-devnet
+```

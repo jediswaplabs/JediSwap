@@ -1,8 +1,8 @@
 import pytest
-from starkware.starknet.core.os.contract_address.contract_address import calculate_contract_address_from_hash
 from starkware.cairo.lang.vm.crypto import pedersen_hash
 
 from utils.revert import assert_revert
+from utils.create2_address import get_create2_address
 
 
 @pytest.mark.asyncio
@@ -16,13 +16,7 @@ async def test_create2_deployed_pair(deployer, declared_pair_class, token_0, tok
     sorted_token_0 = execution_info.result.token0
     sorted_token_1 = execution_info.result.token1
 
-    salt = pedersen_hash(sorted_token_0, sorted_token_1)
-
-    constructor_calldata = [sorted_token_0,
-                            sorted_token_1, factory.contract_address]
-
-    create2_pair_address = calculate_contract_address_from_hash(
-        salt=salt, class_hash=declared_pair_class.class_hash, deployer_address=factory.contract_address, constructor_calldata=constructor_calldata)
+    create2_pair_address = get_create2_address(sorted_token_0, sorted_token_1, factory.contract_address, declared_pair_class.class_hash)
 
     pair = await deployer_signer.send_transaction(deployer_account, factory.contract_address, 'create_pair', [sorted_token_0, sorted_token_1])
 
