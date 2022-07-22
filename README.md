@@ -9,6 +9,7 @@ Clone of Uniswap V2 to Cairo. AMM for StarkNet.
 * [python3](https://www.python.org/downloads/release/python-3910/)
 * [nile](https://github.com/OpenZeppelin/nile)
 * [pytest-xdist](https://github.com/pytest-dev/pytest-xdist) (required for running tests in parallel)
+* [openzeppelin-cairo-contracts]
 
 
 ### Compile Contracts

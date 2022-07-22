@@ -1,7 +1,8 @@
 import asyncio
 from starknet_py.contract import Contract
-from starknet_py.net.client import Client
+from starknet_py.net.gateway_client import GatewayClient
 from starknet_py.net.account.account_client import AccountClient, KeyPair
+from starknet_py.transactions.declare import make_declare_tx
 from starknet_py.net.models import StarknetChainId
 from pathlib import Path
 from base_funcs import *
@@ -19,9 +20,9 @@ async def main():
     if network_arg == 'local':
         from config.local import DEPLOYER, deployer_address, factory_address, router_address, token_addresses_and_decimals, max_fee
         current_network = local_network
-        current_client = Client(current_network, chain=StarknetChainId.TESTNET)
+        current_client = GatewayClient(current_network, chain=StarknetChainId.TESTNET)
         if deployer_address is None:
-            deployer = await AccountClient.create_account(current_network, DEPLOYER, chain=StarknetChainId.TESTNET)
+            deployer = await AccountClient.create_account(current_client, DEPLOYER)
             mint_json = {"address": hex(deployer.address), "amount": 10**18}
             url = f"{local_network}/mint" 
             x = requests.post(url, json = mint_json)
@@ -30,9 +31,9 @@ async def main():
     elif network_arg == 'testnet':
         from config.testnet_none import DEPLOYER, deployer_address, factory_address, router_address, token_addresses_and_decimals, max_fee
         current_network = testnet_network
-        current_client = Client('testnet')
+        current_client = GatewayClient('testnet')
         if deployer_address is None:
-            deployer = await AccountClient.create_account('testnet', DEPLOYER)
+            deployer = await AccountClient.create_account(current_client, DEPLOYER)
         else:
             deployer = AccountClient(address=deployer_address, key_pair=KeyPair.from_private_key(DEPLOYER),  net='testnet')
 
@@ -41,8 +42,12 @@ async def main():
     ## Deploy factory and router
     
     if factory_address is None:
-        declared_pair_class = await current_client.declare(compiled_contract=Path("artifacts/Pair.json").read_text())
-        declared_class_hash = int(declared_pair_class["class_hash"], 16)
+        declare_tx = make_declare_tx(compiled_contract=Path("artifacts/Pair.json").read_text())
+        declared_pair_class = await current_client.declare(declare_tx)
+        # declared_pair_class = await current_client.declare(compiled_contract=Path("artifacts/Pair.json").read_text())
+        print(f"Declared Pair Class: {declared_pair_class}")
+        # declared_class_hash = int(declared_pair_class["class_hash"], 16)
+        declared_class_hash = declared_pair_class.hash
         print(f"Declared class hash: {declared_class_hash}")
         deployment_result = await Contract.deploy(client=current_client, compiled_contract=Path("artifacts/Factory.json").read_text(), constructor_args=[declared_class_hash, deployer.address])
         await deployment_result.wait_for_acceptance()
@@ -61,22 +66,22 @@ async def main():
 
     ## Deploy and Mint tokens
     
-    for (token_address, token_decimals) in token_addresses_and_decimals[0:2]:
+    for (token_address, token_decimals) in token_addresses_and_decimals:
         token = await deploy_or_get_token(current_client, token_address, token_decimals, deployer, max_fee)
         tokens.append(token)
 
     to_create_pairs_array = [
         (tokens[0], tokens[1], 10 ** 8, int((10 ** 8) / 2)), 
-        # (tokens[0], tokens[2], 10 ** 8, (10 ** 8) * 2),
-        # (tokens[0], tokens[3], 0.000162, 0.5),
-        # (tokens[3], tokens[1], 10 ** 8, int((10 ** 8) / 2)),
-        # (tokens[3], tokens[2], 10 ** 8, (10 ** 8) * 2)
+        (tokens[0], tokens[2], 10 ** 8, (10 ** 8) * 2),
+        (tokens[0], tokens[3], 0.000162, 0.5),
+        (tokens[3], tokens[1], 10 ** 8, int((10 ** 8) / 2)),
+        (tokens[3], tokens[2], 10 ** 8, (10 ** 8) * 2)
         ]
 
     for (token0, token1, amount0, amount1) in to_create_pairs_array:
         
         # Set pair
-        # await create_or_get_pair(current_client, factory, token0, token1, deployer, max_fee)
+        await create_or_get_pair(current_client, factory, token0, token1, deployer, max_fee)
 
         # Add liquidity
         await add_liquidity_to_pair(current_client, factory, router, token0, token1, amount0, amount1, deployer, max_fee)
