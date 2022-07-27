@@ -4,8 +4,22 @@ Clone of Uniswap V2 to Cairo. AMM for StarkNet.
 
 ## Testing and Development
 
-### Dependencies
+### Create an environment
 
+Create a [virtualenv](https://docs.python.org/3/library/venv.html) and activate it:
+
+```bash
+python3 -m venv env
+source env/bin/activate
+```
+
+Install the dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+More information:
 * [python3](https://www.python.org/downloads/release/python-3910/)
 * [nile](https://github.com/OpenZeppelin/nile)
 * [pytest-xdist](https://github.com/pytest-dev/pytest-xdist) (required for running tests in parallel)
