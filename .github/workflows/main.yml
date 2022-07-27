@@ -30,4 +30,4 @@ jobs:
         run: nile compile
 
       - name: Run tests
-        run: pytest --disable-warnings -sv -rA
+        run: pytest --disable-warnings -sv -rA -n auto
