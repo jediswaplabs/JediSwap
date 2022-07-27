@@ -23,6 +23,7 @@ eth-keys==0.3.4
 eth-rlp==0.2.1
 eth-typing==2.3.0
 eth-utils==1.10.0
+execnet==1.9.0
 fastecdsa==2.2.3
 Flask==2.0.3
 Flask-Cors==3.0.10
@@ -65,6 +66,8 @@ pyparsing==3.0.9
 pyrsistent==0.18.1
 pytest==7.1.2
 pytest-asyncio==0.19.0
+pytest-forked==1.4.0
+pytest-xdist==2.5.0
 python-dotenv==0.20.0
 PyYAML==6.0
 requests==2.28.1
