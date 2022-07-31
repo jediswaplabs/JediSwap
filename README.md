@@ -4,13 +4,18 @@ Clone of Uniswap V2 to Cairo. AMM for StarkNet.
 
 ## Testing and Development
 
-### Dependencies
+### Setup a local virtual env
 
-* [python3](https://www.python.org/downloads/release/python-3910/)
-* [nile](https://github.com/OpenZeppelin/nile)
-* [pytest-xdist](https://github.com/pytest-dev/pytest-xdist) (required for running tests in parallel)
-* [openzeppelin-cairo-contracts](https://github.com/OpenZeppelin/cairo-contracts)
+```
+python -m venv ./venv
+source ./venv/bin/activate
+```
 
+### Install dependencies
+
+```
+pip install -r requirements.txt
+```
 
 ### Compile Contracts
 ```
@@ -28,11 +33,9 @@ pytest -s -v -n auto
 
 ### Run Scripts
 
-#### Additional Dependencies
+All scripts are placed in ```scripts``` folder. 
 
-* [starknet.py](https://github.com/software-mansion/starknet.py)
-
-All scripts are placed in ```scripts``` folder. testnet config is not committed, please create your own in ```scripts/config```
+Note: Testnet config is not committed, please create your own in ```scripts/config```
 
 Example:
 ```
@@ -43,3 +46,13 @@ To run scripts on local system, you need to run a devnet server:
 ```
 starknet-devnet
 ```
+
+### Resources
+
+* [python3](https://www.python.org/downloads/release/python-3910/)
+* [cairo-lang](https://github.com/starkware-libs/cairo-lang)
+* [nile](https://github.com/OpenZeppelin/nile)
+* [openzeppelin-cairo-contracts](https://github.com/OpenZeppelin/cairo-contracts)
+* [pytest](https://docs.pytest.org/en/7.1.x/)
+* [pytest-xdist](https://github.com/pytest-dev/pytest-xdist) (required for running tests in parallel)
+* [starknet.py](https://github.com/software-mansion/starknet.py)
