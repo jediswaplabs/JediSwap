@@ -18,28 +18,6 @@ local_network = "http://127.0.0.1:5050"
 testnet_network = "https://alpha4.starknet.io"
 tokens = []
 
-path_to_json = 'artifacts/'
-json_files = [pos_json for pos_json in os.listdir(
-    path_to_json) if pos_json.endswith('.json')]
-
-
-def get_contract_class(class_location):
-    location = path_to_json + class_location
-    with open(location) as f:
-        class_data = json.load(f)
-    contract_class = ContractClass.load(class_data)
-
-    return contract_class
-
-
-def calculate_class_hash(class_location):
-    contract_class = get_contract_class(class_location)
-    class_hash = compute_class_hash(
-        contract_class=contract_class,
-    )
-
-    return class_hash
-
 async def main():
     network_arg = sys.argv[1]
 
@@ -70,14 +48,9 @@ async def main():
     if factory_address is None:
         declare_tx = make_declare_tx(compiled_contract=Path("artifacts/Pair.json").read_text())
         declared_pair_class = await current_client.declare(declare_tx)
-        # declared_pair_class = await current_client.declare(compiled_contract=Path("artifacts/Pair.json").read_text())
-        print(f"Declared Pair Class: {declared_pair_class}")
-        # declared_class_hash = int(declared_pair_class["class_hash"], 16)
-        declared_class_hash = declared_pair_class.hash
+        declared_class_hash = declared_pair_class.class_hash
         print(f"Declared class hash: {declared_class_hash}")
-        class_hash = calculate_class_hash("Pair.json")
-        print(f" class hash: {class_hash}")
-        deployment_result = await Contract.deploy(client=current_client, compiled_contract=Path("artifacts/Factory.json").read_text(), constructor_args=[class_hash, deployer.address])
+        deployment_result = await Contract.deploy(client=current_client, compiled_contract=Path("artifacts/Factory.json").read_text(), constructor_args=[declared_class_hash, deployer.address])
         await deployment_result.wait_for_acceptance()
         factory = deployment_result.deployed_contract
     else:

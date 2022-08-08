@@ -96,7 +96,7 @@ async def add_liquidity_to_pair(current_client, factory, router, token0, token1,
     result = await factory.functions["get_pair"].call(token0.address, token1.address)
     pair = await Contract.from_address(result.pair, current_client)
     result = await pair.functions["get_reserves"].call()
-    print(result)
+    print(result._asdict())
 
 async def swap_token0_to_token1(current_client, factory, router, token0, token1, amount0, deployer, max_fee):
 
@@ -125,7 +125,7 @@ async def swap_token0_to_token1(current_client, factory, router, token0, token1,
     result = await factory.functions["get_pair"].call(token0.address, token1.address)
     pair = await Contract.from_address(result.pair, current_client)
     result = await pair.functions["get_reserves"].call()
-    print(result)
+    print(result._asdict())
 
     result = await token0.functions["balanceOf"].call(deployer.address)
     print(f"Balance token0: {result.balance}")
