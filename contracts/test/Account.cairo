@@ -7,8 +7,6 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin,
 
 from openzeppelin.account.library import Account, AccountCallArray
 
-from openzeppelin.introspection.ERC165 import ERC165
-
 #
 # Constructor
 #
@@ -45,16 +43,6 @@ func get_nonce{
     }() -> (res: felt):
     let (res) = Account.get_nonce()
     return (res=res)
-end
-
-@view
-func supportsInterface{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr
-    } (interfaceId: felt) -> (success: felt):
-    let (success) = ERC165.supports_interface(interfaceId)
-    return (success)
 end
 
 #

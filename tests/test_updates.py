@@ -1,7 +1,6 @@
 import pytest
 import asyncio
 from utils.revert import assert_revert
-from utils.events import get_event_data
 
 
 @pytest.mark.asyncio

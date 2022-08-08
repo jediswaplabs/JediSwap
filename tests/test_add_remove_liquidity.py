@@ -45,7 +45,7 @@ async def test_add_liquidity_expired_deadline(starknet, router, token_0, token_1
 
 
 @pytest.mark.asyncio
-async def test_add_remove_liquidity(router, pair, token_0, token_1, user_1, random_acc):
+async def test_add_remove_liquidity_created_pair(router, pair, token_0, token_1, user_1, random_acc):
     user_1_signer, user_1_account = user_1
     random_signer, random_account = random_acc
 
@@ -212,7 +212,7 @@ async def test_add_remove_liquidity(router, pair, token_0, token_1, user_1, rand
 
 
 @pytest.mark.asyncio
-async def test_add_remove_liquidity_for_new_pair(starknet, router, declared_pair_class, token_0, token_3, user_1, random_acc, factory):
+async def test_add_remove_liquidity_for_non_created_pair(starknet, router, declared_pair_class, token_0, token_3, user_1, random_acc, factory):
     user_1_signer, user_1_account = user_1
     random_signer, random_account = random_acc
 

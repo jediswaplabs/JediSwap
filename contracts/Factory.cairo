@@ -189,6 +189,7 @@ func create_pair{
         contract_address_salt=salt,
         constructor_calldata_size=3,
         constructor_calldata=constructor_calldata,
+        deploy_from_zero=0,
     )
 
     _pair.write(token0, token1, pair)
