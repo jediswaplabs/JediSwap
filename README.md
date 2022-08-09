@@ -10,6 +10,7 @@ Clone of Uniswap V2 to Cairo. AMM for StarkNet.
 * [nile](https://github.com/OpenZeppelin/nile)
 * [pytest-xdist](https://github.com/pytest-dev/pytest-xdist) (required for running tests in parallel)
 * [openzeppelin-cairo-contracts](https://github.com/OpenZeppelin/cairo-contracts)
+* [protostar](https://docs.swmansion.com/protostar/) (optional)
 
 
 ### Compile Contracts
@@ -24,6 +25,11 @@ pytest -s -v
 To distribute tests across multiple CPUs to speed up test execution: 
 ```
 pytest -s -v -n auto
+```
+
+To run protostar tests:
+```
+protostar test
 ```
 
 ### Run Scripts
