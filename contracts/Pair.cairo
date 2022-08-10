@@ -9,6 +9,7 @@
 #      Also an ERC20 token
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
+from starkware.cairo.common.bool import TRUE, FALSE
 from starkware.starknet.common.syscalls import (
     get_caller_address,
     get_contract_address,
@@ -32,6 +33,7 @@ from starkware.cairo.common.uint256 import (
     uint256_unsigned_div_rem,
 )
 from starkware.cairo.common.alloc import alloc
+from openzeppelin.token.erc20.library import ERC20
 from contracts.utils.math import (
     uint256_checked_add,
     uint256_checked_sub_lt,
@@ -39,8 +41,7 @@ from contracts.utils.math import (
     uint256_checked_mul,
     uint256_felt_checked_mul,
 )
-from starkware.cairo.common.bool import TRUE, FALSE
-from openzeppelin.token.erc20.library import ERC20
+
 
 const MINIMUM_LIQUIDITY = 1000
 const BURN_ADDRESS = 1
