@@ -22,9 +22,6 @@ jobs:
       - name: Activate protostar
         run: echo "/home/runner/.protostar/dist/protostar" >> $GITHUB_PATH
 
-      - name: Help protostar
-        run: echo $GITHUB_PATH
-
       - name: Install protostar dependencies
         run: protostar install
 
