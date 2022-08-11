@@ -10,8 +10,7 @@ import sys
 import requests
 import os
 
-from starkware.starknet.core.os.class_hash import compute_class_hash
-from starkware.starknet.services.api.contract_class import ContractClass
+os.environ['CAIRO_PATH'] = 'lib/cairo_contracts/src/'
 
 # Local network
 local_network = "http://127.0.0.1:5050"
@@ -46,11 +45,11 @@ async def main():
     ## Deploy factory and router
     
     if factory_address is None:
-        declare_tx = make_declare_tx(compiled_contract=Path("artifacts/Pair.json").read_text())
+        declare_tx = make_declare_tx(compilation_source=Path("contracts/Pair.cairo").read_text())
         declared_pair_class = await current_client.declare(declare_tx)
         declared_class_hash = declared_pair_class.class_hash
         print(f"Declared class hash: {declared_class_hash}")
-        deployment_result = await Contract.deploy(client=current_client, compiled_contract=Path("artifacts/Factory.json").read_text(), constructor_args=[declared_class_hash, deployer.address])
+        deployment_result = await Contract.deploy(client=current_client, compilation_source=Path("contracts/Factory.cairo").read_text(), constructor_args=[declared_class_hash, deployer.address])
         await deployment_result.wait_for_acceptance()
         factory = deployment_result.deployed_contract
     else:
@@ -58,7 +57,7 @@ async def main():
     print(f"Factory deployed: {factory.address}, {hex(factory.address)}")
 
     if router_address is None:
-        deployment_result = await Contract.deploy(client=current_client, compiled_contract=Path("artifacts/Router.json").read_text(), constructor_args=[factory.address])
+        deployment_result = await Contract.deploy(client=current_client, compilation_source=Path("contracts/Router.cairo").read_text(), constructor_args=[factory.address])
         await deployment_result.wait_for_acceptance()
         router = deployment_result.deployed_contract
     else:

@@ -1,5 +1,0 @@
-cairo-lang==0.9.1
-pytest==7.1.2
-cairo-nile>=0.8.0
-pytest-xdist>=2.5.0
-openzeppelin-cairo-contracts>=0.3.0

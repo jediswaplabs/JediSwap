@@ -5,7 +5,13 @@ protostar_version = "0.3.0"
 libs_path = "lib"
 
 ["protostar.contracts"]
-pair = [
+Factory = [
+    "./contracts/Factory.cairo",
+]
+Router = [
+    "./contracts/Router.cairo",
+]
+Pair = [
     "./contracts/Pair.cairo",
 ]
 
