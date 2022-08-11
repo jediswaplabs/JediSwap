@@ -20,10 +20,10 @@ jobs:
         run: curl -L https://raw.githubusercontent.com/software-mansion/protostar/master/install.sh | bash
 
       - name: Activate protostar
-        run: export PATH="$PATH:/home/runner/.protostar/dist/protostar"
+        run: echo "/home/runner/.protostar/dist/protostar" >> $GITHUB_PATH
 
       - name: Help protostar
-        run: echo $PATH
+        run: echo $GITHUB_PATH
 
       - name: Install protostar dependencies
         run: protostar install
