@@ -1,9 +1,3 @@
 [submodule "cairo_contracts"]
 	url = https://github.com/OpenZeppelin/cairo-contracts
 	path = lib/cairo_contracts
-[submodule "openzeppelin"]
-	url = https://github.com/OpenZeppelin/cairo-contracts
-	path = lib/openzeppelin
-[submodule "open_zeppelin"]
-	url = https://github.com/OpenZeppelin/cairo-contracts
-	path = lib/open_zeppelin
