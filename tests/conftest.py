@@ -11,7 +11,7 @@ pair_symbol_string = "JEDI-P"
 
 oz_lib_path = sysconfig.get_paths()["purelib"]
 oz_account_contract_path = os.path.join(oz_lib_path, 'openzeppelin/account/presets/Account.cairo')
-oz_token_contract_path = os.path.join(oz_lib_path, 'openzeppelin/token/erc20/presets/ERC20.cairo')
+oz_token_contract_path = os.path.join(oz_lib_path, 'openzeppelin/token/erc20/presets/ERC20Mintable.cairo')
 
 
 def uint(a):
@@ -98,6 +98,7 @@ async def token_0(starknet, random_acc):
             str_to_felt("TOKEN0"),  # symbol
             18,                     # decimals
             *uint(1000),            # initial supply
+            random_account.contract_address,
             random_account.contract_address
         ]
     )
@@ -114,6 +115,7 @@ async def token_1(starknet, random_acc):
             str_to_felt("TOKEN1"),  # symbol
             6,                     # decimals
             *uint(1000),           # initial supply
+            random_account.contract_address,
             random_account.contract_address
         ]
     )
@@ -130,6 +132,7 @@ async def token_2(starknet, random_acc):
             str_to_felt("TOKEN2"),  # symbol
             18,                     # decimals
             *uint(1000),            # initial supply
+            random_account.contract_address,
             random_account.contract_address
         ]
     )
@@ -146,6 +149,7 @@ async def token_3(starknet, random_acc):
             str_to_felt("TOKEN3"),  # symbol
             18,                     # decimals
             *uint(1000),            # initial supply
+            random_account.contract_address,
             random_account.contract_address
         ]
     )
