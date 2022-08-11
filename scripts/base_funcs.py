@@ -38,15 +38,11 @@ async def print_transaction_execution_details(current_client, tx_hash):
 async def deploy_or_get_token(current_client, token_address, token_decimals, deployer, max_fee):
     if token_address is None:
         print("Deploying Token")
-        deployment_result = await Contract.deploy(client=deployer, compiled_contract=Path("artifacts/ERC20.json").read_text(), constructor_args=[str_to_felt("TestTokenJedi"), str_to_felt("TTJ"), token_decimals, deployer.address])
+        deployment_result = await Contract.deploy(client=deployer, compilation_source=Path("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo").read_text(), constructor_args=[str_to_felt("TestTokenJedi"), str_to_felt("TTJ"), token_decimals, (10 ** 9) * (10 ** token_decimals), deployer.address, deployer.address])
         await deployment_result.wait_for_acceptance()
         token = deployment_result.deployed_contract
-        estimated_fee = await token.functions["mint"].prepare(deployer.address, (10 ** 9) * (10 ** token_decimals)).estimate_fee()
-        print(f"Estimated fee: {estimated_fee}")
-        await token.functions["mint"].invoke(deployer.address, (10 ** 9) * (10 ** token_decimals), max_fee=max_fee)
     else:
         token = await Contract.from_address(token_address, current_client)
-        # token = Contract(token_address, json.loads(Path("artifacts/abis/ERC20.json").read_text()), current_client)
     print(f"Token deployed: {token.address}, {hex(token.address)}")
     return token
 

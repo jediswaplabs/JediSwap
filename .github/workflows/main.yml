@@ -16,18 +16,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Python setup
-        uses: actions/setup-python@v3
-        with:
-          python-version: '3.9'
-          cache: 'pip'
-          cache-dependency-path: '.github/workflows/requirements-test.txt'
+      - name: Install protostar
+        run: curl -L https://raw.githubusercontent.com/software-mansion/protostar/master/install.sh | bash
 
-      - name: Env setup
-        run: pip install -r .github/workflows/requirements-test.txt
+      - name: Activate protostar
+        run: echo "/home/runner/.protostar/dist/protostar" >> $GITHUB_PATH
 
-      - name: Compile all contracts
-        run: nile compile
+      - name: Install protostar dependencies
+        run: protostar install
+
+      - name: Compile contracts
+        run: protostar build
 
       - name: Run tests
-        run: pytest --disable-warnings -sv -rA
+        run: protostar test
