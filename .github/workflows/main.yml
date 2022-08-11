@@ -22,6 +22,9 @@ jobs:
       - name: Activate protostar
         run: source /home/runner/.bashrc
 
+      - name: Help protostar
+        run: protostar --help
+
       - name: Install protostar dependencies
         run: protostar install
 
