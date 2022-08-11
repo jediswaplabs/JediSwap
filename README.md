@@ -20,11 +20,17 @@ nile compile
 
 ### Run Tests
 ```
-pytest -s -v
+pytest
 ```
 To distribute tests across multiple CPUs to speed up test execution: 
 ```
-pytest -s -v -n auto
+pytest -n auto
+```
+
+To install protostar dependencies:
+
+```
+protostar install
 ```
 
 To run protostar tests:

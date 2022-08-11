@@ -95,8 +95,8 @@ func __setup__{syscall_ptr : felt*, range_check_ptr}():
         context.declared_class_hash = declare("contracts/Pair.cairo").class_hash
         context.factory_address = deploy_contract("contracts/Factory.cairo", [context.declared_class_hash, context.deployer_address]).contract_address
         context.router_address = deploy_contract("contracts/Router.cairo", [context.factory_address]).contract_address
-        context.token_0_address = deploy_contract("contracts/test/token/ERC20.cairo", [11, 1, 18, 1000]).contract_address
-        context.token_1_address = deploy_contract("contracts/test/token/ERC20.cairo", [22, 2, 6, 2000]).contract_address
+        context.token_0_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [11, 1, 18, 0, 0, context.deployer_address, context.deployer_address]).contract_address
+        context.token_1_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [22, 2, 6, 0, 0, context.deployer_address, context.deployer_address]).contract_address
         ids.factory_address = context.factory_address
         ids.router_address = context.router_address
         ids.token_0_address = context.token_0_address
@@ -119,12 +119,16 @@ func __setup__{syscall_ptr : felt*, range_check_ptr}():
     let (token_1_multiplier) = pow(10, token_1_decimals)
 
     let amount_to_mint_token_0 = 100 * token_0_multiplier
+    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.sorted_token_0_address) %}
     IERC20.mint(contract_address = sorted_token_0_address, recipient = user_1_address, amount = Uint256(amount_to_mint_token_0, 0))
     IERC20.mint(contract_address = sorted_token_0_address, recipient = user_2_address, amount = Uint256(amount_to_mint_token_0, 0))
+    %{ stop_prank() %}
 
     let amount_to_mint_token_1 = 100 * token_1_multiplier
+    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.sorted_token_1_address) %}
     IERC20.mint(contract_address = sorted_token_1_address, recipient = user_1_address, amount = Uint256(amount_to_mint_token_1, 0))
     IERC20.mint(contract_address = sorted_token_1_address, recipient = user_2_address, amount = Uint256(amount_to_mint_token_1, 0))
+    %{ stop_prank() %}
 
     ### Add liquidity for first time
     
@@ -273,7 +277,7 @@ func test_swap_exact_0_to_2{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, ra
     %{  
         ids.token_0_address = context.sorted_token_0_address
         ids.token_1_address = context.sorted_token_1_address
-        ids.token_2_address = deploy_contract("contracts/test/token/ERC20.cairo", [33, 3, 18, 3000]).contract_address
+        ids.token_2_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [33, 3, 18, 0, 0, context.deployer_address, context.deployer_address]).contract_address
         ids.factory_address = context.factory_address
         ids.router_address = context.router_address
         ids.user_1_address = context.user_1_address
@@ -296,7 +300,9 @@ func test_swap_exact_0_to_2{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, ra
     let (token_2_multiplier) = pow(10, token_2_decimals)
 
     let amount_to_mint_token_2 = 100 * token_2_multiplier
+    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.token_2_address) %}
     IERC20.mint(contract_address = token_2_address, recipient = user_1_address, amount = Uint256(amount_to_mint_token_2, 0))
+    %{ stop_prank() %}
     
     let amount_token_1 = 20 * token_1_multiplier
     %{ stop_prank = start_prank(ids.user_1_address, target_contract_address=ids.token_1_address) %}

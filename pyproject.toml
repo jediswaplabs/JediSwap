@@ -1,0 +1,6 @@
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-s -v"
+testpaths = [
+    "tests"
+]
