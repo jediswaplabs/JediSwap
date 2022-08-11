@@ -16,13 +16,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Protostar Installation
+      - name: Install protostar
         run: curl -L https://raw.githubusercontent.com/software-mansion/protostar/master/install.sh | bash
+
+      - name: Activate protostar
+        run: source /home/runner/.bashrc
 
       - name: Install protostar dependencies
         run: protostar install
 
-      - name: Compile all contracts
+      - name: Compile contracts
         run: protostar build
 
       - name: Run tests
