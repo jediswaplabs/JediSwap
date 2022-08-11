@@ -7,6 +7,10 @@ Clone of Uniswap V2 to Cairo. AMM for StarkNet.
 ### Dependencies
 * [protostar](https://docs.swmansion.com/protostar/)
 
+    To install protostar dependencies:
+    ```
+    protostar install
+    ```
 
 ### Compile Contracts
 ```
@@ -14,12 +18,6 @@ protostar build
 ```
 
 ### Run Tests
-
-To install protostar dependencies:
-
-```
-protostar install
-```
 
 To run protostar tests:
 ```
