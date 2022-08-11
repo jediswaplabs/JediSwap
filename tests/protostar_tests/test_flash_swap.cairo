@@ -99,8 +99,8 @@ func __setup__{syscall_ptr : felt*, range_check_ptr}():
         context.declared_class_hash = declare("contracts/Pair.cairo").class_hash
         context.factory_address = deploy_contract("contracts/Factory.cairo", [context.declared_class_hash, context.deployer_address]).contract_address
         context.router_address = deploy_contract("contracts/Router.cairo", [context.factory_address]).contract_address
-        context.token_0_address = deploy_contract("contracts/test/token/ERC20.cairo", [11, 1, 18, 1000]).contract_address
-        context.token_1_address = deploy_contract("contracts/test/token/ERC20.cairo", [22, 2, 6, 2000]).contract_address
+        context.token_0_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [11, 1, 18, 0, 0, context.deployer_address, context.deployer_address]).contract_address
+        context.token_1_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [22, 2, 6, 0, 0, context.deployer_address, context.deployer_address]).contract_address
         context.flash_swap_test_address = deploy_contract("contracts/test/FlashSwapTest.cairo", [context.factory_address]).contract_address
         ids.factory_address = context.factory_address
         ids.router_address = context.router_address
@@ -125,12 +125,16 @@ func __setup__{syscall_ptr : felt*, range_check_ptr}():
     let (token_1_multiplier) = pow(10, token_1_decimals)
 
     let amount_to_mint_token_0 = 100 * token_0_multiplier
+    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.sorted_token_0_address) %}
     IERC20.mint(contract_address = sorted_token_0_address, recipient = user_1_address, amount = Uint256(amount_to_mint_token_0, 0))
     IERC20.mint(contract_address = sorted_token_0_address, recipient = user_2_address, amount = Uint256(amount_to_mint_token_0, 0))
+    %{ stop_prank() %}
 
     let amount_to_mint_token_1 = 100 * token_1_multiplier
+    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.sorted_token_1_address) %}
     IERC20.mint(contract_address = sorted_token_1_address, recipient = user_1_address, amount = Uint256(amount_to_mint_token_1, 0))
     IERC20.mint(contract_address = sorted_token_1_address, recipient = user_2_address, amount = Uint256(amount_to_mint_token_1, 0))
+    %{ stop_prank() %}
 
     ### Add liquidity for first time
     
@@ -256,7 +260,9 @@ func test_flash_swap_not_enough_repayment{syscall_ptr : felt*, pedersen_ptr : Ha
     local amount_token_0 = 2 * token_0_multiplier
 
     let amount_to_mint_token_0 = amount_token_0 * 2 / 1000
+    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.token_0_address) %}
     IERC20.mint(contract_address = token_0_address, recipient = flash_swap_test_address, amount = Uint256(amount_to_mint_token_0, 0))
+    %{ stop_prank() %}
 
     %{ stop_prank = start_prank(ids.user_2_address, target_contract_address=ids.pair_address) %}
     let data : felt* = alloc()
@@ -297,7 +303,9 @@ func test_flash_swap_same_token_repayment{syscall_ptr : felt*, pedersen_ptr : Ha
     local amount_token_0 = 2 * token_0_multiplier
 
     let amount_to_mint_token_0 = amount_token_0 * 4 / 1000
+    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.token_0_address) %}
     IERC20.mint(contract_address = token_0_address, recipient = flash_swap_test_address, amount = Uint256(amount_to_mint_token_0, 0))
+    %{ stop_prank() %}
 
     %{ stop_prank = start_prank(ids.user_2_address, target_contract_address=ids.pair_address) %}
     let data : felt* = alloc()
@@ -342,7 +350,9 @@ func test_flash_swap_other_token_repayment{syscall_ptr : felt*, pedersen_ptr : H
     let (token_1_multiplier) = pow(10, token_1_decimals)
     local amount_token_1 = 4 * token_1_multiplier
     let amount_to_mint_token_1 = amount_token_1 * 4 / 1000
+    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.token_1_address) %}
     IERC20.mint(contract_address = token_1_address, recipient = flash_swap_test_address, amount = Uint256(amount_to_mint_token_1, 0))
+    %{ stop_prank() %}
 
     %{ stop_prank = start_prank(ids.user_2_address, target_contract_address=ids.pair_address) %}
     let data : felt* = alloc()

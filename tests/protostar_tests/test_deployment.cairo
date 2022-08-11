@@ -45,8 +45,8 @@ func __setup__{syscall_ptr : felt*, range_check_ptr}():
         context.declared_class_hash = declare("contracts/Pair.cairo").class_hash
         context.factory_address = deploy_contract("contracts/Factory.cairo", [context.declared_class_hash, context.deployer_address]).contract_address
         context.router_address = deploy_contract("contracts/Router.cairo", [context.factory_address]).contract_address
-        context.token_0_address = deploy_contract("contracts/test/token/ERC20.cairo", [11, 1, 18, 1000]).contract_address
-        context.token_1_address = deploy_contract("contracts/test/token/ERC20.cairo", [22, 2, 6, 2000]).contract_address
+        context.token_0_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [11, 1, 18, 0, 0, context.deployer_address, context.deployer_address]).contract_address
+        context.token_1_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [22, 2, 6, 0, 0, context.deployer_address, context.deployer_address]).contract_address
         ids.factory_address = context.factory_address
         ids.router_address = context.router_address
         ids.token_0_address = context.token_0_address

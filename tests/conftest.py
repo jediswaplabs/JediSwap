@@ -1,3 +1,5 @@
+import os
+import sysconfig
 import pytest_asyncio
 import asyncio
 from starkware.starknet.testing.starknet import Starknet, StarknetContract
@@ -6,6 +8,10 @@ from utils.contract_class import get_contract_class
 
 pair_name_string = "JediSwap Pair"
 pair_symbol_string = "JEDI-P"
+
+oz_lib_path = sysconfig.get_paths()["purelib"]
+oz_account_contract_path = os.path.join(oz_lib_path, 'openzeppelin/account/presets/Account.cairo')
+oz_token_contract_path = os.path.join(oz_lib_path, 'openzeppelin/token/erc20/presets/ERC20Mintable.cairo')
 
 
 def uint(a):
@@ -32,7 +38,7 @@ async def starknet():
 async def deployer(starknet):
     deployer_signer = MockSigner(123456789987654321)
     deployer_account = await starknet.deploy(
-        "contracts/test/Account.cairo",
+        oz_account_contract_path,
         constructor_calldata=[deployer_signer.public_key]
     )
 
@@ -43,7 +49,7 @@ async def deployer(starknet):
 async def random_acc(starknet):
     random_signer = MockSigner(987654320023456789)
     random_account = await starknet.deploy(
-        "contracts/test/Account.cairo",
+        oz_account_contract_path,
         constructor_calldata=[random_signer.public_key]
     )
 
@@ -54,7 +60,7 @@ async def random_acc(starknet):
 async def user_1(starknet):
     user_1_signer = MockSigner(987654321123456789)
     user_1_account = await starknet.deploy(
-        "contracts/test/Account.cairo",
+        oz_account_contract_path,
         constructor_calldata=[user_1_signer.public_key]
     )
 
@@ -65,7 +71,7 @@ async def user_1(starknet):
 async def user_2(starknet):
     user_2_signer = MockSigner(987654331133456789)
     user_2_account = await starknet.deploy(
-        "contracts/test/Account.cairo",
+        oz_account_contract_path,
         constructor_calldata=[user_2_signer.public_key]
     )
 
@@ -76,7 +82,7 @@ async def user_2(starknet):
 async def fee_recipient(starknet):
     fee_recipient_signer = MockSigner(987654301103456789)
     fee_recipient_account = await starknet.deploy(
-        "contracts/test/Account.cairo",
+        oz_account_contract_path,
         constructor_calldata=[fee_recipient_signer.public_key]
     )
     return fee_recipient_signer, fee_recipient_account
@@ -86,11 +92,13 @@ async def fee_recipient(starknet):
 async def token_0(starknet, random_acc):
     random_signer, random_account = random_acc
     token_0 = await starknet.deploy(
-        "contracts/test/token/ERC20.cairo",
+        oz_token_contract_path,
         constructor_calldata=[
             str_to_felt("Token 0"),  # name
             str_to_felt("TOKEN0"),  # symbol
             18,                     # decimals
+            *uint(1000),            # initial supply
+            random_account.contract_address,
             random_account.contract_address
         ]
     )
@@ -101,11 +109,13 @@ async def token_0(starknet, random_acc):
 async def token_1(starknet, random_acc):
     random_signer, random_account = random_acc
     token_1 = await starknet.deploy(
-        "contracts/test/token/ERC20.cairo",
+        oz_token_contract_path,
         constructor_calldata=[
             str_to_felt("Token 1"),  # name
             str_to_felt("TOKEN1"),  # symbol
             6,                     # decimals
+            *uint(1000),           # initial supply
+            random_account.contract_address,
             random_account.contract_address
         ]
     )
@@ -116,11 +126,13 @@ async def token_1(starknet, random_acc):
 async def token_2(starknet, random_acc):
     random_signer, random_account = random_acc
     token_2 = await starknet.deploy(
-        "contracts/test/token/ERC20.cairo",
+        oz_token_contract_path,
         constructor_calldata=[
             str_to_felt("Token 2"),  # name
             str_to_felt("TOKEN2"),  # symbol
             18,                     # decimals
+            *uint(1000),            # initial supply
+            random_account.contract_address,
             random_account.contract_address
         ]
     )
@@ -131,11 +143,13 @@ async def token_2(starknet, random_acc):
 async def token_3(starknet, random_acc):
     random_signer, random_account = random_acc
     token_3 = await starknet.deploy(
-        "contracts/test/token/ERC20.cairo",
+        oz_token_contract_path,
         constructor_calldata=[
             str_to_felt("Token 3"),  # name
             str_to_felt("TOKEN3"),  # symbol
             18,                     # decimals
+            *uint(1000),            # initial supply
+            random_account.contract_address,
             random_account.contract_address
         ]
     )

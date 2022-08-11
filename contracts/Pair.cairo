@@ -5,10 +5,11 @@
 # @license MIT
 # @notice Low level pair contract
 # @dev Based on the Uniswap V2 pair
-#       https://github.com/Uniswap/v2-core/blob/master/contracts/UniswapV2Pair.sol
+#      https://github.com/Uniswap/v2-core/blob/master/contracts/UniswapV2Pair.sol
 #      Also an ERC20 token
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
+from starkware.cairo.common.bool import TRUE, FALSE
 from starkware.starknet.common.syscalls import (
     get_caller_address,
     get_contract_address,
@@ -32,6 +33,7 @@ from starkware.cairo.common.uint256 import (
     uint256_unsigned_div_rem,
 )
 from starkware.cairo.common.alloc import alloc
+from openzeppelin.token.erc20.library import ERC20
 from contracts.utils.math import (
     uint256_checked_add,
     uint256_checked_sub_lt,
@@ -39,6 +41,7 @@ from contracts.utils.math import (
     uint256_checked_mul,
     uint256_felt_checked_mul,
 )
+
 
 const MINIMUM_LIQUIDITY = 1000
 const BURN_ADDRESS = 1
@@ -70,40 +73,6 @@ namespace IJediSwapCallee:
         sender : felt, amount0Out : Uint256, amount1Out : Uint256, data_len : felt, data : felt*
     ):
     end
-end
-
-#
-# Storage ERC20
-#
-
-# @dev Name of the token
-@storage_var
-func _name() -> (res : felt):
-end
-
-# @dev Symbol of the token
-@storage_var
-func _symbol() -> (res : felt):
-end
-
-# @dev Decimals of the token
-@storage_var
-func _decimals() -> (res : felt):
-end
-
-# @dev Total Supply of the token
-@storage_var
-func total_supply() -> (res : Uint256):
-end
-
-# @dev Balances of the token for each account
-@storage_var
-func balances(account : felt) -> (res : Uint256):
-end
-
-# @dev Allowances of the token for owner-spender pair
-@storage_var
-func allowances(owner : felt, spender : felt) -> (res : Uint256):
 end
 
 #
@@ -215,9 +184,7 @@ func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         assert_not_zero(token0)
         assert_not_zero(token1)
     end
-    _name.write('JediSwap Pair')
-    _symbol.write('JEDI-P')
-    _decimals.write(18)
+    ERC20.initializer('JediSwap Pair', 'JEDI-P', 18)
     _locked.write(0)
     _token0.write(token0)
     _token1.write(token1)
@@ -232,36 +199,48 @@ end
 # @notice Name of the token
 # @return name
 @view
-func name{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (name : felt):
-    let (name) = _name.read()
+func name{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (name: felt):
+    let (name) = ERC20.name()
     return (name)
 end
 
 # @notice Symbol of the token
 # @return symbol
 @view
-func symbol{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (symbol : felt):
-    let (symbol) = _symbol.read()
+func symbol{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (symbol: felt):
+    let (symbol) = ERC20.symbol()
     return (symbol)
 end
 
 # @notice Total Supply of the token
 # @return totalSupply
 @view
-func totalSupply{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-    totalSupply : Uint256
-):
-    let (totalSupply : Uint256) = total_supply.read()
+func totalSupply{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (totalSupply: Uint256):
+    let (totalSupply: Uint256) = ERC20.total_supply()
     return (totalSupply)
 end
 
 # @notice Decimals of the token
 # @return decimals
 @view
-func decimals{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-    decimals : felt
-):
-    let (decimals) = _decimals.read()
+func decimals{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (decimals: felt):
+    let (decimals) = ERC20.decimals()
     return (decimals)
 end
 
@@ -269,10 +248,12 @@ end
 # @param account Account address whose balance is fetched
 # @return balance Balance of `account`
 @view
-func balanceOf{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    account : felt
-) -> (balance : Uint256):
-    let (balance : Uint256) = balances.read(account=account)
+func balanceOf{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(account: felt) -> (balance: Uint256):
+    let (balance: Uint256) = ERC20.balance_of(account)
     return (balance)
 end
 
@@ -281,10 +262,12 @@ end
 # @param spender Account address which can spend the tokens
 # @return remaining
 @view
-func allowance{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    owner : felt, spender : felt
-) -> (remaining : Uint256):
-    let (remaining : Uint256) = allowances.read(owner=owner, spender=spender)
+func allowance{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(owner: felt, spender: felt) -> (remaining: Uint256):
+    let (remaining: Uint256) = ERC20.allowance(owner, spender)
     return (remaining)
 end
 
@@ -358,14 +341,13 @@ end
 # @param amount Amount of tokens to transfer
 # @return success 0 or 1
 @external
-func transfer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    recipient : felt, amount : Uint256
-) -> (success : felt):
-    let (sender) = get_caller_address()
-    _transfer(sender, recipient, amount)
-
-    # Cairo equivalent to 'return (true)'
-    return (1)
+func transfer{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(recipient: felt, amount: Uint256) -> (success: felt):
+    ERC20.transfer(recipient, amount)
+    return (TRUE)
 end
 
 # @notice Transfer `amount` tokens from `sender` to `recipient`
@@ -375,57 +357,31 @@ end
 # @param amount Amount of tokens to transfer
 # @return success 0 or 1
 @external
-func transferFrom{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    sender : felt, recipient : felt, amount : Uint256
-) -> (success : felt):
-    alloc_locals
-    let (local caller) = get_caller_address()
-    let (local caller_allowance : Uint256) = allowances.read(owner=sender, spender=caller)
-
-    # validates amount <= caller_allowance and returns 1 if true
-    let (enough_balance) = uint256_le(amount, caller_allowance)
-    with_attr error_message("Pair::transferFrom::amount exceeds allowance"):
-        assert_not_zero(enough_balance)
-    end
-
-    _transfer(sender, recipient, amount)
-
-    # subtract allowance
-    let (new_allowance : Uint256) = uint256_checked_sub_le(caller_allowance, amount)
-    allowances.write(sender, caller, new_allowance)
-    Approval.emit(owner=sender, spender=caller, amount=new_allowance)
-
-    # Cairo equivalent to 'return (true)'
-    return (1)
+func transferFrom{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        sender: felt,
+        recipient: felt,
+        amount: Uint256
+    ) -> (success: felt):
+    ERC20.transfer_from(sender, recipient, amount)
+    return (TRUE)
 end
 
 # @notice Approve `spender` to transfer `amount` tokens on behalf of `caller`
-# @dev Approval may only be from zero -> nonzero or from nonzero -> zero in order
-#      to mitigate the potential race condition described here:
-#      https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
 # @param spender The address which will spend the funds
 # @param amount The amount of tokens to be spent
 # @return success 0 or 1
 @external
-func approve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    spender : felt, amount : Uint256
-) -> (success : felt):
-    alloc_locals
-    let (caller) = get_caller_address()
-    let (current_allowance : Uint256) = allowances.read(caller, spender)
-    let (local current_allowance_mul_amount : Uint256) = uint256_checked_mul(
-        current_allowance, amount
-    )
-    let (either_current_allowance_or_amount_is_0) = uint256_eq(
-        current_allowance_mul_amount, Uint256(0, 0)
-    )
-    with_attr error_message("Pair::approve::Can only go from 0 to amount or amount to 0"):
-        assert either_current_allowance_or_amount_is_0 = 1
-    end
-    _approve(caller, spender, amount)
-
-    # Cairo equivalent to 'return (true)'
-    return (1)
+func approve{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(spender: felt, amount: Uint256) -> (success: felt):
+    ERC20.approve(spender, amount)
+    return (TRUE)
 end
 
 # @notice Increase allowance of `spender` to transfer `added_value` more tokens on behalf of `caller`
@@ -433,21 +389,13 @@ end
 # @param added_value The increased amount of tokens to be spent
 # @return success 0 or 1
 @external
-func increaseAllowance{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    spender : felt, added_value : Uint256
-) -> (success : felt):
-    alloc_locals
-    uint256_check(added_value)
-    let (local caller) = get_caller_address()
-    let (local current_allowance : Uint256) = allowances.read(caller, spender)
-
-    # add allowance
-    let (local new_allowance : Uint256) = uint256_checked_add(current_allowance, added_value)
-
-    _approve(caller, spender, new_allowance)
-
-    # Cairo equivalent to 'return (true)'
-    return (1)
+func increaseAllowance{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(spender: felt, added_value: Uint256) -> (success: felt):
+    ERC20.increase_allowance(spender, added_value)
+    return (TRUE)
 end
 
 # @notice Decrease allowance of `spender` to transfer `subtracted_value` less tokens on behalf of `caller`
@@ -455,28 +403,13 @@ end
 # @param subtracted_value The decreased amount of tokens to be spent
 # @return success 0 or 1
 @external
-func decreaseAllowance{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    spender : felt, subtracted_value : Uint256
-) -> (success : felt):
-    alloc_locals
-    uint256_check(subtracted_value)
-    let (local caller) = get_caller_address()
-    let (local current_allowance : Uint256) = allowances.read(owner=caller, spender=spender)
-    let (local new_allowance : Uint256) = uint256_checked_sub_le(
-        current_allowance, subtracted_value
-    )
-
-    # validates new_allowance < current_allowance and returns 1 if true
-    let (enough_allowance) = uint256_lt(new_allowance, current_allowance)
-    with_attr error_message(
-            "Pair::decreaseAllowance::New allowance is greater than current allowance"):
-        assert_not_zero(enough_allowance)
-    end
-
-    _approve(caller, spender, new_allowance)
-
-    # Cairo equivalent to 'return (true)'
-    return (1)
+func decreaseAllowance{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(spender: felt, subtracted_value: Uint256) -> (success: felt):
+    ERC20.decrease_allowance(spender, subtracted_value)
+    return (TRUE)
 end
 
 #
@@ -505,7 +438,7 @@ func mint{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(to 
 
     let (fee_on) = _mint_protocol_fee(reserve0, reserve1)
 
-    let (local _total_supply : Uint256) = total_supply.read()
+    let (local _total_supply : Uint256) = totalSupply()
     let (is_total_supply_equal_to_zero) = uint256_eq(_total_supply, Uint256(0, 0))
 
     local liquidity : Uint256
@@ -522,7 +455,7 @@ func mint{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(to 
             mul_sqrt, Uint256(MINIMUM_LIQUIDITY, 0)
         )
         assert liquidity = initial_liquidity
-        _mint(BURN_ADDRESS, Uint256(MINIMUM_LIQUIDITY, 0))
+        ERC20._mint(BURN_ADDRESS, Uint256(MINIMUM_LIQUIDITY, 0))
         tempvar syscall_ptr = syscall_ptr
         tempvar pedersen_ptr = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
@@ -552,7 +485,7 @@ func mint{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(to 
         assert is_liquidity_greater_than_zero = 1
     end
 
-    _mint(to, liquidity)
+    ERC20._mint(to, liquidity)
 
     _update(balance0, balance1, reserve0, reserve1)
 
@@ -595,11 +528,11 @@ func burn{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(to 
     let (token1) = _token1.read()
     let (local balance1 : Uint256) = IERC20.balanceOf(contract_address=token1, account=self_address)
 
-    let (local liquidity : Uint256) = balances.read(self_address)
+    let (local liquidity : Uint256) = balanceOf(self_address)
 
     let (fee_on) = _mint_protocol_fee(reserve0, reserve1)
 
-    let (local _total_supply : Uint256) = total_supply.read()
+    let (local _total_supply : Uint256) = totalSupply()
     let (is_total_supply_greater_than_zero) = uint256_lt(Uint256(0, 0), _total_supply)
 
     assert is_total_supply_greater_than_zero = 1
@@ -621,7 +554,7 @@ func burn{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(to 
         assert is_amount1_greater_than_zero = 1
     end
 
-    _burn(self_address, liquidity)
+    ERC20._burn(self_address, liquidity)
 
     IERC20.transfer(contract_address=token0, recipient=to, amount=amount0)
     IERC20.transfer(contract_address=token1, recipient=to, amount=amount1)
@@ -866,108 +799,6 @@ func sync{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}():
 end
 
 #
-# Internals ERC20
-#
-
-func _mint{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    recipient : felt, amount : Uint256
-):
-    alloc_locals
-    with_attr error_message("Pair::_mint::recipient can not be zero"):
-        assert_not_zero(recipient)
-    end
-    uint256_check(amount)
-
-    let (balance : Uint256) = balances.read(account=recipient)
-    # overflow is not possible because sum is guaranteed to be less than total supply
-    # which we check for overflow below
-    let (new_balance : Uint256) = uint256_checked_add(balance, amount)
-    balances.write(recipient, new_balance)
-
-    let (local supply : Uint256) = total_supply.read()
-    let (local new_supply : Uint256) = uint256_checked_add(supply, amount)
-
-    total_supply.write(new_supply)
-    Transfer.emit(0, recipient, amount)
-    return ()
-end
-
-func _transfer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    sender : felt, recipient : felt, amount : Uint256
-):
-    alloc_locals
-    with_attr error_message("Pair::_transfer::sender can not be zero"):
-        assert_not_zero(sender)
-    end
-    with_attr error_message("Pair::_transfer::recipient can not be zero"):
-        assert_not_zero(recipient)
-    end
-    uint256_check(amount)  # almost surely not needed, might remove after confirmation
-
-    let (local sender_balance : Uint256) = balances.read(account=sender)
-
-    # validates amount <= sender_balance and returns 1 if true
-    let (enough_balance) = uint256_le(amount, sender_balance)
-    with_attr error_message("Pair::_transfer::not enough balance for sender"):
-        assert_not_zero(enough_balance)
-    end
-
-    # subtract from sender
-    let (new_sender_balance : Uint256) = uint256_checked_sub_le(sender_balance, amount)
-    balances.write(sender, new_sender_balance)
-
-    # add to recipient
-    let (recipient_balance : Uint256) = balances.read(account=recipient)
-    # overflow is not possible because sum is guaranteed by mint to be less than total supply
-    let (new_recipient_balance : Uint256) = uint256_checked_add(recipient_balance, amount)
-    balances.write(recipient, new_recipient_balance)
-
-    Transfer.emit(from_address=sender, to_address=recipient, amount=amount)
-    return ()
-end
-
-func _approve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    caller : felt, spender : felt, amount : Uint256
-):
-    with_attr error_message("Pair::_approve::caller can not be zero"):
-        assert_not_zero(caller)
-    end
-    with_attr error_message("Pair::_approve::spender can not be zero"):
-        assert_not_zero(spender)
-    end
-    uint256_check(amount)
-    allowances.write(caller, spender, amount)
-    Approval.emit(owner=caller, spender=spender, amount=amount)
-    return ()
-end
-
-func _burn{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    account : felt, amount : Uint256
-):
-    alloc_locals
-    with_attr error_message("Pair::_burn::account can not be zero"):
-        assert_not_zero(account)
-    end
-    uint256_check(amount)
-
-    let (balance : Uint256) = balances.read(account)
-    # validates amount <= balance and returns 1 if true
-    let (enough_balance) = uint256_le(amount, balance)
-    with_attr error_message("Pair::_burn::not enough balance to burn"):
-        assert_not_zero(enough_balance)
-    end
-
-    let (new_balance : Uint256) = uint256_checked_sub_le(balance, amount)
-    balances.write(account, new_balance)
-
-    let (supply : Uint256) = total_supply.read()
-    let (new_supply : Uint256) = uint256_checked_sub_le(supply, amount)
-    total_supply.write(new_supply)
-    Transfer.emit(account, 0, amount)
-    return ()
-end
-
-#
 # Internals Pair
 #
 
@@ -1011,14 +842,14 @@ func _mint_protocol_fee{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_
             let (is_rootk_greater_than_rootklast) = uint256_lt(rootklast, rootk)
             if is_rootk_greater_than_rootklast == 1:
                 let (local rootkdiff : Uint256) = uint256_checked_sub_le(rootk, rootklast)
-                let (local _total_supply : Uint256) = total_supply.read()
+                let (local _total_supply : Uint256) = totalSupply()
                 let (numerator : Uint256) = uint256_checked_mul(rootkdiff, _total_supply)
                 let (rootk_mul_5 : Uint256) = uint256_felt_checked_mul(rootk, 5)
                 let (local denominator : Uint256) = uint256_checked_add(rootk_mul_5, rootklast)
                 let (liquidity : Uint256, _) = uint256_unsigned_div_rem(numerator, denominator)
                 let (is_liquidity_greater_than_zero) = uint256_lt(Uint256(0, 0), liquidity)
                 if is_liquidity_greater_than_zero == 1:
-                    _mint(fee_to, liquidity)
+                    ERC20._mint(fee_to, liquidity)
                     tempvar syscall_ptr = syscall_ptr
                     tempvar pedersen_ptr = pedersen_ptr
                     tempvar range_check_ptr = range_check_ptr
