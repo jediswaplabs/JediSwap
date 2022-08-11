@@ -23,7 +23,7 @@ jobs:
         run: source /home/runner/.bashrc
 
       - name: Help protostar
-        run: protostar --help
+        run: echo $PATH
 
       - name: Install protostar dependencies
         run: protostar install
