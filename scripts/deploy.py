@@ -3,6 +3,7 @@ from starknet_py.contract import Contract
 from starknet_py.net.gateway_client import GatewayClient
 from starknet_py.net.account.account_client import AccountClient, KeyPair
 from starknet_py.transactions.declare import make_declare_tx
+from starknet_py.transactions.deploy import make_deploy_tx
 from starknet_py.net.models import StarknetChainId
 from pathlib import Path
 from base_funcs import *
@@ -49,19 +50,22 @@ async def main():
         declared_pair_class = await current_client.declare(declare_tx)
         declared_class_hash = declared_pair_class.class_hash
         print(f"Declared class hash: {declared_class_hash}")
-        deployment_result = await Contract.deploy(client=current_client, compilation_source=Path("contracts/Factory.cairo").read_text(), constructor_args=[declared_class_hash, deployer.address])
+        # deploy_tx = make_deploy_tx(compilation_source=Path("contracts/Factory.cairo").read_text(), constructor_calldata=[declared_class_hash])
+        # deployment_result = await deployer.deploy(deploy_tx)
+        # await deployer.wait_for_tx(deployment_result.transaction_hash)
+        # factory_address = deployment_result.contract_address
+        deployment_result = await Contract.deploy(client=deployer, compilation_source=Path("contracts/Factory.cairo").read_text(), constructor_args=[declared_class_hash])
         await deployment_result.wait_for_acceptance()
-        factory = deployment_result.deployed_contract
-    else:
-        factory = await Contract.from_address(factory_address, current_client)
-    print(f"Factory deployed: {factory.address}, {hex(factory.address)}")
+        factory_address = deployment_result.deployed_contract.address
+    factory = await Contract.from_address(factory_address, current_client)
+    result = await factory.functions["get_fee_to_setter"].call()
+    print(f"Factory deployed: {factory.address}, {hex(factory.address)}, {result}")
 
     if router_address is None:
         deployment_result = await Contract.deploy(client=current_client, compilation_source=Path("contracts/Router.cairo").read_text(), constructor_args=[factory.address])
         await deployment_result.wait_for_acceptance()
-        router = deployment_result.deployed_contract
-    else:
-        router = await Contract.from_address(router_address, current_client)
+        router_address = deployment_result.deployed_contract.address
+    router = await Contract.from_address(router_address, current_client)
     print(f"Router deployed: {router.address}, {hex(router.address)}")
 
     ## Deploy and Mint tokens
