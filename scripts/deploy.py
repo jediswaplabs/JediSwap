@@ -50,11 +50,7 @@ async def main():
         declared_pair_class = await current_client.declare(declare_tx)
         declared_class_hash = declared_pair_class.class_hash
         print(f"Declared class hash: {declared_class_hash}")
-        # deploy_tx = make_deploy_tx(compilation_source=Path("contracts/Factory.cairo").read_text(), constructor_calldata=[declared_class_hash])
-        # deployment_result = await deployer.deploy(deploy_tx)
-        # await deployer.wait_for_tx(deployment_result.transaction_hash)
-        # factory_address = deployment_result.contract_address
-        deployment_result = await Contract.deploy(client=deployer, compilation_source=Path("contracts/Factory.cairo").read_text(), constructor_args=[declared_class_hash])
+        deployment_result = await Contract.deploy(client=current_client, compilation_source=Path("contracts/Factory.cairo").read_text(), constructor_args=[declared_class_hash, deployer.address])
         await deployment_result.wait_for_acceptance()
         factory_address = deployment_result.deployed_contract.address
     factory = await Contract.from_address(factory_address, current_client)

@@ -61,18 +61,23 @@ func pair_created(token0: felt, token1: felt, pair: felt, total_pairs: felt) {
 // @param fee_to Initial fee recipient
 @constructor
 func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    pair_contract_class_hash: felt
+    pair_contract_class_hash: felt, fee_to_setter: felt
 ) {
+
+    with_attr error_message("Factory::constructor::Fee Recipient Setter can not be zero") {
+        assert_not_zero(fee_to_setter);
+    }
+    
     with_attr error_message("Factory::constructor::Pair Contract Class Hash can not be zero") {
         assert_not_zero(pair_contract_class_hash);
     }
 
-    let (fee_to_setter) = get_caller_address();
     _fee_to_setter.write(fee_to_setter);
     _pair_contract_class_hash.write(pair_contract_class_hash);
     _num_of_pairs.write(0);
     return ();
 }
+
 //
 // Getters
 //

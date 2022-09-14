@@ -23,13 +23,7 @@ func __setup__{syscall_ptr: felt*, range_check_ptr}() {
     %{
         context.deployer_address = ids.deployer_address
         context.declared_pair_class_hash = declare("contracts/Pair.cairo").class_hash
-        stop_prank = start_prank(context.deployer_address)
-        declared_factory = declare("contracts/Factory.cairo")
-        prepared_factory = prepare(declared_factory, [context.declared_pair_class_hash])
-        context.factory_address = prepared_factory.contract_address
-        stop_prank = start_prank(ids.deployer_address, target_contract_address=context.factory_address)
-        deploy(prepared_factory)
-        stop_prank()
+        context.factory_address = deploy_contract("contracts/Factory.cairo", [context.declared_pair_class_hash, context.deployer_address]).contract_address
         context.token_0_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [11, 1, 18, 0, 0, context.deployer_address, context.deployer_address]).contract_address
         context.token_1_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [22, 2, 6, 0, 0, context.deployer_address, context.deployer_address]).contract_address
         ids.factory_address = context.factory_address
