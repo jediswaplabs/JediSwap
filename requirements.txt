@@ -1,0 +1,5 @@
+# cairo-lang==0.9.0
+# cairo-nile==0.6.1
+# openzeppelin-cairo-contracts==0.2.1
+starknet.py>=0.4.0-alpha
+starknet-devnet>=0.2.4
