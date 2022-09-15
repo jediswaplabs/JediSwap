@@ -13,9 +13,6 @@ import os
 
 os.environ['CAIRO_PATH'] = 'lib/cairo_contracts/src/'
 
-# Local network
-local_network = "http://127.0.0.1:5050"
-testnet_network = "https://alpha4.starknet.io"
 tokens = []
 
 async def main():
@@ -23,23 +20,29 @@ async def main():
 
     if network_arg == 'local':
         from config.local import DEPLOYER, deployer_address, fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
-        current_network = local_network
-        current_client = GatewayClient(current_network, chain=StarknetChainId.TESTNET)
+        local_network = "http://127.0.0.1:5050"
+        current_client = GatewayClient(local_network)
         if deployer_address is None:
             deployer = await AccountClient.create_account(current_client, DEPLOYER)
             mint_json = {"address": hex(deployer.address), "amount": 10**18}
             url = f"{local_network}/mint" 
             x = requests.post(url, json = mint_json)
         else:
-            deployer = AccountClient(address=deployer_address, key_pair=KeyPair.from_private_key(DEPLOYER),  net=current_network, chain=StarknetChainId.TESTNET)
+            deployer = AccountClient(address=deployer_address, key_pair=KeyPair.from_private_key(DEPLOYER),  net=local_network)
     elif network_arg == 'testnet':
         from config.testnet_none import DEPLOYER, deployer_address, fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
-        current_network = testnet_network
         current_client = GatewayClient('testnet')
         if deployer_address is None:
             deployer = await AccountClient.create_account(current_client, DEPLOYER)
         else:
             deployer = AccountClient(address=deployer_address, key_pair=KeyPair.from_private_key(DEPLOYER),  net='testnet')
+    elif network_arg == 'mainnet':
+        from config.mainnet_none import DEPLOYER, deployer_address, fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
+        current_client = GatewayClient('mainnet')
+        if deployer_address is None:
+            deployer = await AccountClient.create_account(current_client, DEPLOYER)
+        else:
+            deployer = AccountClient(address=deployer_address, key_pair=KeyPair.from_private_key(DEPLOYER),  net='mainnet')
 
     print(f"Deployer Address: {deployer.address}, {hex(deployer.address)}")
 
