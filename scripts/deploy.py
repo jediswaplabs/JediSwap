@@ -22,7 +22,7 @@ async def main():
     network_arg = sys.argv[1]
 
     if network_arg == 'local':
-        from config.local import DEPLOYER, deployer_address, factory_address, router_address, token_addresses_and_decimals, max_fee
+        from config.local import DEPLOYER, deployer_address, fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
         current_network = local_network
         current_client = GatewayClient(current_network, chain=StarknetChainId.TESTNET)
         if deployer_address is None:
@@ -33,7 +33,7 @@ async def main():
         else:
             deployer = AccountClient(address=deployer_address, key_pair=KeyPair.from_private_key(DEPLOYER),  net=current_network, chain=StarknetChainId.TESTNET)
     elif network_arg == 'testnet':
-        from config.testnet_none import DEPLOYER, deployer_address, factory_address, router_address, token_addresses_and_decimals, max_fee
+        from config.testnet_none import DEPLOYER, deployer_address, fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
         current_network = testnet_network
         current_client = GatewayClient('testnet')
         if deployer_address is None:
@@ -42,7 +42,11 @@ async def main():
             deployer = AccountClient(address=deployer_address, key_pair=KeyPair.from_private_key(DEPLOYER),  net='testnet')
 
     print(f"Deployer Address: {deployer.address}, {hex(deployer.address)}")
-    
+
+    if fee_to_setter_address is None:
+        fee_to_setter_address = deployer.address
+    else:
+        fee_to_setter_address = int(fee_to_setter_address, 16)
     ## Deploy factory and router
     
     if factory_address is None:
@@ -50,12 +54,12 @@ async def main():
         declared_pair_class = await current_client.declare(declare_tx)
         declared_class_hash = declared_pair_class.class_hash
         print(f"Declared class hash: {declared_class_hash}")
-        deployment_result = await Contract.deploy(client=current_client, compilation_source=Path("contracts/Factory.cairo").read_text(), constructor_args=[declared_class_hash, deployer.address])
+        deployment_result = await Contract.deploy(client=current_client, compilation_source=Path("contracts/Factory.cairo").read_text(), constructor_args=[declared_class_hash, fee_to_setter_address])
         await deployment_result.wait_for_acceptance()
         factory_address = deployment_result.deployed_contract.address
     factory = await Contract.from_address(factory_address, current_client)
     result = await factory.functions["get_fee_to_setter"].call()
-    print(f"Factory deployed: {factory.address}, {hex(factory.address)}, {result}")
+    print(f"Factory deployed: {factory.address}, {hex(factory.address)}, {result.address}, {hex(result.address)}")
 
     if router_address is None:
         deployment_result = await Contract.deploy(client=current_client, compilation_source=Path("contracts/Router.cairo").read_text(), constructor_args=[factory.address])
@@ -64,30 +68,30 @@ async def main():
     router = await Contract.from_address(router_address, current_client)
     print(f"Router deployed: {router.address}, {hex(router.address)}")
 
-    ## Deploy and Mint tokens
+    # ## Deploy and Mint tokens
     
-    for (token_address, token_decimals) in token_addresses_and_decimals:
-        token = await deploy_or_get_token(current_client, token_address, token_decimals, deployer, max_fee)
-        tokens.append(token)
+    # for (token_address, token_decimals) in token_addresses_and_decimals:
+    #     token = await deploy_or_get_token(current_client, token_address, token_decimals, deployer, max_fee)
+    #     tokens.append(token)
 
-    to_create_pairs_array = [
-        (tokens[0], tokens[1], 10 ** 8, int((10 ** 8) / 2)), 
-        (tokens[0], tokens[2], 10 ** 8, (10 ** 8) * 2),
-        (tokens[0], tokens[3], 0.000162, 0.5),
-        (tokens[3], tokens[1], 10 ** 8, int((10 ** 8) / 2)),
-        (tokens[3], tokens[2], 10 ** 8, (10 ** 8) * 2)
-        ]
+    # to_create_pairs_array = [
+    #     (tokens[0], tokens[1], 10 ** 8, int((10 ** 8) / 2)), 
+    #     (tokens[0], tokens[2], 10 ** 8, (10 ** 8) * 2),
+    #     (tokens[0], tokens[3], 0.000162, 0.5),
+    #     (tokens[3], tokens[1], 10 ** 8, int((10 ** 8) / 2)),
+    #     (tokens[3], tokens[2], 10 ** 8, (10 ** 8) * 2)
+    #     ]
 
-    for (token0, token1, amount0, amount1) in to_create_pairs_array:
+    # for (token0, token1, amount0, amount1) in to_create_pairs_array:
         
-        # Set pair
-        await create_or_get_pair(current_client, factory, token0, token1, deployer, max_fee)
+    #     # Set pair
+    #     await create_or_get_pair(current_client, factory, token0, token1, deployer, max_fee)
 
-        # Add liquidity
-        await add_liquidity_to_pair(current_client, factory, router, token0, token1, amount0, amount1, deployer, max_fee)
+    #     # Add liquidity
+    #     await add_liquidity_to_pair(current_client, factory, router, token0, token1, amount0, amount1, deployer, max_fee)
 
-        # Swap
-        await swap_token0_to_token1(current_client, factory, router, token0, token1, amount0/20, deployer, max_fee)
+    #     # Swap
+    #     await swap_token0_to_token1(current_client, factory, router, token0, token1, amount0/20, deployer, max_fee)
 
 
 if __name__ == "__main__":

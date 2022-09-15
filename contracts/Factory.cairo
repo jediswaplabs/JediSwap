@@ -50,7 +50,7 @@ func _pair_contract_class_hash() -> (class_hash: felt) {
 // token0 is guaranteed to be strictly less than token1 by sort order.
 
 @event
-func pair_created(token0: felt, token1: felt, pair: felt, total_pairs: felt) {
+func PairCreated(token0: felt, token1: felt, pair: felt, total_pairs: felt) {
 }
 
 //
@@ -199,7 +199,7 @@ func create_pair{
     let (num_pairs) = _num_of_pairs.read();
     _all_pairs.write(num_pairs, pair);
     _num_of_pairs.write(num_pairs + 1);
-    pair_created.emit(token0=token0, token1=token1, pair=pair, total_pairs=num_pairs + 1);
+    PairCreated.emit(token0=token0, token1=token1, pair=pair, total_pairs=num_pairs + 1);
 
     return (pair=pair);
 }
