@@ -1,0 +1,32 @@
+name: Jediswap AMM Tests
+
+on:
+  push:
+    branches: [ main]
+  pull_request:
+    branches: [ main]
+  workflow_dispatch:
+    
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install protostar
+        run: curl -L https://raw.githubusercontent.com/software-mansion/protostar/master/install.sh | bash
+
+      - name: Activate protostar
+        run: echo "/home/runner/.protostar/dist/protostar" >> $GITHUB_PATH
+
+      - name: Install protostar dependencies
+        run: protostar install
+
+      - name: Compile contracts
+        run: protostar build
+
+      - name: Run tests
+        run: protostar test

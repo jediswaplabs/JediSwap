@@ -1,0 +1,19 @@
+["protostar.config"]
+protostar_version = "0.4.2"
+
+["protostar.project"]
+libs_path = "lib"
+
+["protostar.contracts"]
+Factory = [
+    "./contracts/Factory.cairo",
+]
+Router = [
+    "./contracts/Router.cairo",
+]
+Pair = [
+    "./contracts/Pair.cairo",
+]
+
+["protostar.shared_command_configs"]
+cairo-path = ["./lib/cairo_contracts/src"]
