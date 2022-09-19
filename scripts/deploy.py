@@ -30,45 +30,44 @@ async def main():
             x = requests.post(url, json = mint_json)
         else:
             deployer = AccountClient(address=deployer_address, key_pair=KeyPair.from_private_key(DEPLOYER),  net=local_network, chain=StarknetChainId.TESTNET)
+        print(f"Deployer Address: {deployer.address}, {hex(deployer.address)}")
+        if fee_to_setter_address is None:
+            fee_to_setter_address = deployer.address
+        else:
+            fee_to_setter_address = int(fee_to_setter_address, 16)
     elif network_arg == 'testnet':
         from config.testnet_none import DEPLOYER, deployer_address, fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
         current_client = GatewayClient('testnet')
-        if deployer_address is None:
-            deployer = await AccountClient.create_account(current_client, DEPLOYER)
-        else:
-            deployer = AccountClient(address=deployer_address, key_pair=KeyPair.from_private_key(DEPLOYER),  net='testnet')
+        fee_to_setter_address = int(fee_to_setter_address, 16)
     elif network_arg == 'mainnet':
         from config.mainnet_none import DEPLOYER, deploy_token_mainnet, deployer_address, fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
         current_client = GatewayClient('mainnet')
-        if deployer_address is None:
-            deployer = await AccountClient.create_account(current_client, DEPLOYER)
-        else:
-            deployer = AccountClient(address=deployer_address, key_pair=KeyPair.from_private_key(DEPLOYER),  net='mainnet')
-        deploy_token = deploy_token_mainnet
-
-    print(f"Deployer Address: {deployer.address}, {hex(deployer.address)}")
-
-    if fee_to_setter_address is None:
-        fee_to_setter_address = deployer.address
-    else:
         fee_to_setter_address = int(fee_to_setter_address, 16)
+        deploy_token = deploy_token_mainnet
+    
+    
     ## Deploy factory and router
     
+    ## Generate the json files using starknet-compile as the mainnet token for deployment is generated using those compiled files.
+    ## These are not included in the repo. Please run starknet-compile contracts/Pair.cairo --output Pair.json. Similarly for others.
+    
     if factory_address is None:
-        declare_tx = make_declare_tx(compilation_source=Path("contracts/Pair.cairo").read_text())
+        declare_tx = make_declare_tx(compiled_contract=Path("Pair.json").read_text())
         declared_pair_class = await current_client.declare(declare_tx, token=deploy_token)
         declared_class_hash = declared_pair_class.class_hash
         print(f"Declared class hash: {declared_class_hash}")
-        deploy_tx = make_deploy_tx(compilation_source=Path("contracts/Factory.cairo").read_text(), constructor_calldata=[declared_class_hash, fee_to_setter_address])
+        deploy_tx = make_deploy_tx(compiled_contract=Path("Factory.json").read_text(), constructor_calldata=[declared_class_hash, fee_to_setter_address])
         deployment_result = await current_client.deploy(deploy_tx, token=deploy_token)
+        await current_client.wait_for_tx(deployment_result.transaction_hash)
         factory_address = deployment_result.contract_address
     factory = await Contract.from_address(factory_address, current_client)
     result = await factory.functions["get_fee_to_setter"].call()
     print(f"Factory deployed: {factory.address}, {hex(factory.address)}, {result.address}, {hex(result.address)}")
 
     if router_address is None:
-        deploy_tx = make_deploy_tx(compilation_source=Path("contracts/Router.cairo").read_text(), constructor_calldata=[factory.address])
+        deploy_tx = make_deploy_tx(compiled_contract=Path("Router.json").read_text(), constructor_calldata=[factory.address])
         deployment_result = await current_client.deploy(deploy_tx, token=deploy_token)
+        await current_client.wait_for_tx(deployment_result.transaction_hash)
         router_address = deployment_result.contract_address
     router = await Contract.from_address(router_address, current_client)
     print(f"Router deployed: {router.address}, {hex(router.address)}")
