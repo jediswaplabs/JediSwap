@@ -2,9 +2,9 @@ name: Jediswap AMM Tests
 
 on:
   push:
-    branches: [ main, initial_poc ]
+    branches: [ main]
   pull_request:
-    branches: [ main, initial_poc ]
+    branches: [ main]
   workflow_dispatch:
     
 
