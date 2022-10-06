@@ -176,6 +176,12 @@ func get_amounts_in{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
     return (path_len, amounts);
 }
 
+@view
+func test_v2_contract{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    ) -> (success: felt) {
+    return (success=1);
+}
+
 //
 // Externals
 //

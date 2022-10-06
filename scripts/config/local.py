@@ -1,7 +1,3 @@
-## Private Keys
-DEPLOYER = 1
-
-deployer_address = None
 fee_to_setter_address = None
 factory_address = None
 router_address = None

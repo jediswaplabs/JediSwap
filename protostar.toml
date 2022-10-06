@@ -5,11 +5,20 @@ protostar_version = "0.4.2"
 libs_path = "lib"
 
 ["protostar.contracts"]
+FactoryProxy = [
+    "./contracts/FactoryProxy.cairo",
+]
 Factory = [
     "./contracts/Factory.cairo",
 ]
+RouterProxy = [
+    "./contracts/RouterProxy.cairo",
+]
 Router = [
     "./contracts/Router.cairo",
+]
+PairProxy = [
+    "./contracts/PairProxy.cairo",
 ]
 Pair = [
     "./contracts/Pair.cairo",

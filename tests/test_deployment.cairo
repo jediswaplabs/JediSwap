@@ -33,6 +33,12 @@ namespace IFactory {
     }
 }
 
+@contract_interface
+namespace IProxy {
+    func get_admin() -> (admin: felt) {
+    }
+}
+
 @external
 func __setup__{syscall_ptr: felt*, range_check_ptr}() {
     tempvar deployer_address = 123456789987654321;
@@ -42,9 +48,12 @@ func __setup__{syscall_ptr: felt*, range_check_ptr}() {
     tempvar token_1_address;
     %{
         context.deployer_address = ids.deployer_address
+        context.declared_pair_proxy_class_hash = declare("contracts/PairProxy.cairo").class_hash
         context.declared_pair_class_hash = declare("contracts/Pair.cairo").class_hash
-        context.factory_address = deploy_contract("contracts/Factory.cairo", [context.declared_pair_class_hash, context.deployer_address]).contract_address
-        context.router_address = deploy_contract("contracts/Router.cairo", [context.factory_address]).contract_address
+        context.declared_factory_class_hash = declare("contracts/Factory.cairo").class_hash
+        context.factory_address = deploy_contract("contracts/FactoryProxy.cairo", [context.declared_factory_class_hash, context.declared_pair_proxy_class_hash, context.declared_pair_class_hash, context.deployer_address]).contract_address
+        context.declared_router_class_hash = declare("contracts/Router.cairo").class_hash
+        context.router_address = deploy_contract("contracts/RouterProxy.cairo", [context.declared_router_class_hash, context.factory_address, context.deployer_address]).contract_address
         context.token_0_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [11, 1, 18, 0, 0, context.deployer_address, context.deployer_address]).contract_address
         context.token_1_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [22, 2, 6, 0, 0, context.deployer_address, context.deployer_address]).contract_address
         ids.factory_address = context.factory_address
@@ -129,6 +138,32 @@ func test_factory_in_router{syscall_ptr: felt*, range_check_ptr}() {
 
     let (factory_address_from_router) = IRouter.factory(contract_address=router_address);
     assert factory_address_from_router = factory_address;
+
+    return ();
+}
+
+@external
+func test_proxy_admins{syscall_ptr: felt*, range_check_ptr}() {
+    tempvar deployer_address;
+    tempvar factory_address;
+    tempvar router_address;
+    tempvar pair_address;
+
+    %{
+        ids.deployer_address = context.deployer_address
+        ids.factory_address = context.factory_address
+        ids.router_address = context.router_address
+        ids.pair_address = context.pair_address
+    %}
+
+    let (factory_admin) = IProxy.get_admin(contract_address=factory_address);
+    assert factory_admin = deployer_address;
+
+    let (router_admin) = IProxy.get_admin(contract_address=router_address);
+    assert router_admin = deployer_address;
+
+    let (pair_admin) = IProxy.get_admin(contract_address=pair_address);
+    assert pair_admin = deployer_address;
 
     return ();
 }
