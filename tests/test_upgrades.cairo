@@ -134,6 +134,8 @@ func test_upgrade_implementation{syscall_ptr: felt*, range_check_ptr}() {
         ids.declared_pair_v2_class_hash = declare("contracts/test/PairV2.cairo").class_hash
     %}
 
+    //  Upgrade Factory implementation contract
+
     %{ expect_revert(error_type="ENTRY_POINT_NOT_FOUND_IN_CONTRACT") %}
     IV2.test_v2_contract(contract_address=factory_address);
 
@@ -151,8 +153,11 @@ func test_upgrade_implementation{syscall_ptr: felt*, range_check_ptr}() {
     let (factory_v2_success) = IV2.test_v2_contract(contract_address=factory_address);
     assert factory_v2_success = 1;
 
+    // Assert factory state is persisted after upgrade
     let (fee_to_setter_address_final) = IFactory.get_fee_to_setter(contract_address=factory_address);
     assert fee_to_setter_address_final = fee_to_setter_address_initial;
+
+    // Upgrade Router impelementation contract
 
     %{ expect_revert(error_type="ENTRY_POINT_NOT_FOUND_IN_CONTRACT") %}
     IV2.test_v2_contract(contract_address=deployer_address);
@@ -171,8 +176,11 @@ func test_upgrade_implementation{syscall_ptr: felt*, range_check_ptr}() {
     let (router_v2_success) = IV2.test_v2_contract(contract_address=router_address);
     assert router_v2_success = 1;
 
+    // Assert Router state is persisted after upgrade
     let (factory_address_from_router_final) = IRouter.factory(contract_address=router_address);
     assert factory_address_from_router_final = factory_address_from_router_initial;
+
+    //  Upgrade Pair implementation contract
 
     %{ expect_revert(error_type="ENTRY_POINT_NOT_FOUND_IN_CONTRACT") %}
     IV2.test_v2_contract(contract_address=pair_address);
