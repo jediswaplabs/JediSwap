@@ -181,8 +181,8 @@ func create_pair{
     with_attr error_message("Factory::create_pair::pair already exists for tokenA and tokenB") {
         assert existing_pair = 0;
     }
-    let (proxy_class_hash: felt) = _pair_proxy_contract_class_hash.read();
-    let (class_hash: felt) = _pair_contract_class_hash.read();
+    let (pair_proxy_class_hash: felt) = _pair_proxy_contract_class_hash.read();
+    let (pair_implementation_class_hash: felt) = _pair_contract_class_hash.read();
 
     let (token0, token1) = _sort_tokens(tokenA, tokenB);
 
@@ -196,13 +196,13 @@ func create_pair{
 
     let constructor_calldata: felt* = alloc();
 
-    assert [constructor_calldata] = class_hash;
+    assert [constructor_calldata] = pair_implementation_class_hash;
     assert [constructor_calldata + 1] = token0;
     assert [constructor_calldata + 2] = token1;
     assert [constructor_calldata + 3] = fee_to_setter;
 
     let (pair: felt) = deploy(
-        class_hash=proxy_class_hash,
+        class_hash=pair_proxy_class_hash,
         contract_address_salt=salt,
         constructor_calldata_size=4,
         constructor_calldata=constructor_calldata,
