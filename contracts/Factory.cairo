@@ -101,7 +101,13 @@ func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
 func get_pair{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     token0: felt, token1: felt
 ) -> (pair: felt) {
-    return _pair.read(token0, token1);
+    let (pair_0_1) = _pair.read(token0, token1);
+    if (pair_0_1 == 0) {
+        let (pair_1_0) = _pair.read(token1, token0);
+        return (pair=pair_1_0);
+    } else {
+        return (pair=pair_0_1);
+    }
 }
 
 // @notice Get all the pairs registered
@@ -177,7 +183,7 @@ func create_pair{
         assert_not_equal(tokenA, tokenB);
     }
 
-    let (existing_pair) = _pair.read(tokenA, tokenB);
+    let (existing_pair) = get_pair(tokenA, tokenB);
     with_attr error_message("Factory::create_pair::pair already exists for tokenA and tokenB") {
         assert existing_pair = 0;
     }
@@ -210,7 +216,6 @@ func create_pair{
     );
 
     _pair.write(token0, token1, pair);
-    _pair.write(token1, token0, pair);
     let (num_pairs) = _num_of_pairs.read();
     _all_pairs.write(num_pairs, pair);
     _num_of_pairs.write(num_pairs + 1);
