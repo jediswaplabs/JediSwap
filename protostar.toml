@@ -23,6 +23,9 @@ PairProxy = [
 Pair = [
     "./contracts/Pair.cairo",
 ]
+Multicall = [
+    "./contracts/utils/Multicall.cairo",
+]
 
 ["protostar.shared_command_configs"]
 cairo-path = ["./lib/cairo_contracts/src"]
