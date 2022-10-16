@@ -43,16 +43,13 @@ async def main():
         current_client = GatewayClient('testnet')
         fee_to_setter_address = int(fee_to_setter_address, 16)
     elif network_arg == 'mainnet':
-        from config.mainnet_none import deploy_token_mainnet, fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
+        from config.mainnet_none import fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
         current_client = GatewayClient('mainnet')
         fee_to_setter_address = int(fee_to_setter_address, 16)
-        deploy_token = deploy_token_mainnet
+        deploy_token = os.environ['DEPLOY_TOKEN']
     
     
     ## Deploy factory and router
-    
-    ## Generate the json files using starknet-compile as the mainnet token for deployment is generated using those compiled files.
-    ## These are not included in the repo. Please run starknet-compile contracts/Pair.cairo --output Pair.json. Similarly for others.
     
     if factory_address is None:
         declare_tx = make_declare_tx(compiled_contract=Path("build/Pair.json").read_text())
@@ -72,7 +69,7 @@ async def main():
         await current_client.wait_for_tx(deployment_result.transaction_hash)
         factory_address = deployment_result.contract_address
     factory = Contract(address=factory_address, abi=json.loads(Path("build/Factory_abi.json").read_text()), client=current_client)
-    print(f"Factory deployed: {factory.address}, {hex(factory.address)}, {result.address}, {hex(result.address)}")
+    print(f"Factory deployed: {factory.address}, {hex(factory.address)}")
     result = await factory.functions["get_fee_to_setter"].call()
     print(f"Fee to setter: {result.address}, {hex(result.address)}")
 

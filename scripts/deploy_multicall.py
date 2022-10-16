@@ -26,7 +26,7 @@ async def main():
         current_client = GatewayClient('testnet')
     elif network_arg == 'mainnet':
         current_client = GatewayClient('mainnet')
-        deploy_token = deploy_token_mainnet
+        deploy_token = os.environ['DEPLOY_TOKEN']
     
     deploy_tx = make_deploy_tx(compiled_contract=Path("build/Multicall.json").read_text(), constructor_calldata=[])
     deployment_result = await current_client.deploy(deploy_tx, token=deploy_token)
