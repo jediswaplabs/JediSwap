@@ -42,6 +42,11 @@ async def main():
         from config.testnet_none import fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
         current_client = GatewayClient('testnet')
         fee_to_setter_address = int(fee_to_setter_address, 16)
+    elif network_arg == 'testnet2':
+        from config.testnet_none import fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
+        network_url = "https://alpha4-2.starknet.io"
+        current_client = GatewayClient({"feeder_gateway_url": f"{network_url}/feeder_gateway", "gateway_url": f"{network_url}/gateway"})
+        fee_to_setter_address = int(fee_to_setter_address, 16)
     elif network_arg == 'mainnet':
         from config.mainnet_none import fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
         current_client = GatewayClient('mainnet')

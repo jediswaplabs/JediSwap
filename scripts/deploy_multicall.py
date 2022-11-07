@@ -24,6 +24,9 @@ async def main():
         current_client = GatewayClient({"feeder_gateway_url": f"{local_network}/feeder_gateway", "gateway_url": f"{local_network}/gateway"})
     elif network_arg == 'testnet':
         current_client = GatewayClient('testnet')
+    if network_arg == 'testnet2':
+        network_url = "https://alpha4-2.starknet.io"
+        current_client = GatewayClient({"feeder_gateway_url": f"{network_url}/feeder_gateway", "gateway_url": f"{network_url}/gateway"})
     elif network_arg == 'mainnet':
         current_client = GatewayClient('mainnet')
         deploy_token = os.environ['DEPLOY_TOKEN']
