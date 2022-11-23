@@ -20,52 +20,70 @@ async def main():
     deploy_token = None
 
     if network_arg == 'local':
-        from config.local import DEPLOYER, deployer_address, fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
+        from config.local import fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
         local_network = "http://127.0.0.1:5050"
-        current_client = GatewayClient(local_network, chain=StarknetChainId.TESTNET)
-        if deployer_address is None:
-            deployer = await AccountClient.create_account(current_client, DEPLOYER)
-            mint_json = {"address": hex(deployer.address), "amount": 10**18}
-            url = f"{local_network}/mint" 
-            x = requests.post(url, json = mint_json)
-        else:
-            deployer = AccountClient(address=deployer_address, key_pair=KeyPair.from_private_key(DEPLOYER),  net=local_network, chain=StarknetChainId.TESTNET)
+        current_client = GatewayClient({"feeder_gateway_url": f"{local_network}/feeder_gateway", "gateway_url": f"{local_network}/gateway"})
+        deployed_accounts_url = f"{local_network}/predeployed_accounts" 
+        response = requests.get(deployed_accounts_url)
+        deployed_accounts = response.json()
+        deployer = AccountClient(
+            client=current_client, 
+            address=deployed_accounts[0]["address"],
+            key_pair=KeyPair(private_key=int(deployed_accounts[0]["private_key"], 16), public_key=int(deployed_accounts[0]["public_key"], 16)),
+            chain=StarknetChainId.TESTNET,
+            supported_tx_version=1
+            )
         print(f"Deployer Address: {deployer.address}, {hex(deployer.address)}")
         if fee_to_setter_address is None:
             fee_to_setter_address = deployer.address
         else:
             fee_to_setter_address = int(fee_to_setter_address, 16)
     elif network_arg == 'testnet':
-        from config.testnet_none import DEPLOYER, deployer_address, fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
+        from config.testnet_none import fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
         current_client = GatewayClient('testnet')
         fee_to_setter_address = int(fee_to_setter_address, 16)
+    elif network_arg == 'testnet2':
+        from config.testnet_none import fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
+        network_url = "https://alpha4-2.starknet.io"
+        current_client = GatewayClient({"feeder_gateway_url": f"{network_url}/feeder_gateway", "gateway_url": f"{network_url}/gateway"})
+        fee_to_setter_address = int(fee_to_setter_address, 16)
     elif network_arg == 'mainnet':
-        from config.mainnet_none import DEPLOYER, deploy_token_mainnet, deployer_address, fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
+        from config.mainnet_none import fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
         current_client = GatewayClient('mainnet')
         fee_to_setter_address = int(fee_to_setter_address, 16)
-        deploy_token = deploy_token_mainnet
+        deploy_token = os.environ['DEPLOY_TOKEN']
     
     
     ## Deploy factory and router
     
-    ## Generate the json files using starknet-compile as the mainnet token for deployment is generated using those compiled files.
-    ## These are not included in the repo. Please run starknet-compile contracts/Pair.cairo --output Pair.json. Similarly for others.
-    
     if factory_address is None:
-        declare_tx = make_declare_tx(compiled_contract=Path("Pair.json").read_text())
+        declare_tx = make_declare_tx(compiled_contract=Path("build/Pair.json").read_text())
         declared_pair_class = await current_client.declare(declare_tx, token=deploy_token)
-        declared_class_hash = declared_pair_class.class_hash
-        print(f"Declared class hash: {declared_class_hash}")
-        deploy_tx = make_deploy_tx(compiled_contract=Path("Factory.json").read_text(), constructor_calldata=[declared_class_hash, fee_to_setter_address])
+        declared_pair_class_hash = declared_pair_class.class_hash
+        print(f"Declared pair class hash: {declared_pair_class_hash}, {hex(declared_pair_class_hash)}")
+        declare_tx = make_declare_tx(compiled_contract=Path("build/PairProxy.json").read_text())
+        declared_pair_proxy_class = await current_client.declare(declare_tx, token=deploy_token)
+        declared_pair_proxy_class_hash = declared_pair_proxy_class.class_hash
+        print(f"Declared pair proxy class hash: {declared_pair_proxy_class_hash}, {hex(declared_pair_proxy_class_hash)}")
+        declare_tx = make_declare_tx(compiled_contract=Path("build/Factory.json").read_text())
+        declared_factory_class = await current_client.declare(declare_tx, token=deploy_token)
+        declared_factory_class_hash = declared_factory_class.class_hash
+        print(f"Declared factory class hash: {declared_factory_class_hash}, {hex(declared_factory_class_hash)}")
+        deploy_tx = make_deploy_tx(compiled_contract=Path("build/FactoryProxy.json").read_text(), constructor_calldata=[declared_factory_class_hash, declared_pair_proxy_class_hash, declared_pair_class_hash, fee_to_setter_address])
         deployment_result = await current_client.deploy(deploy_tx, token=deploy_token)
         await current_client.wait_for_tx(deployment_result.transaction_hash)
         factory_address = deployment_result.contract_address
-    factory = await Contract.from_address(factory_address, current_client)
+    factory = Contract(address=factory_address, abi=json.loads(Path("build/Factory_abi.json").read_text()), client=current_client)
+    print(f"Factory deployed: {factory.address}, {hex(factory.address)}")
     result = await factory.functions["get_fee_to_setter"].call()
-    print(f"Factory deployed: {factory.address}, {hex(factory.address)}, {result.address}, {hex(result.address)}")
+    print(f"Fee to setter: {result.address}, {hex(result.address)}")
 
     if router_address is None:
-        deploy_tx = make_deploy_tx(compiled_contract=Path("Router.json").read_text(), constructor_calldata=[factory.address])
+        declare_tx = make_declare_tx(compiled_contract=Path("build/Router.json").read_text())
+        declared_router_class = await current_client.declare(declare_tx, token=deploy_token)
+        declared_router_class_hash = declared_router_class.class_hash
+        print(f"Declared router class hash: {declared_router_class_hash}, {hex(declared_router_class_hash)}")
+        deploy_tx = make_deploy_tx(compiled_contract=Path("build/RouterProxy.json").read_text(), constructor_calldata=[declared_router_class_hash, factory.address, fee_to_setter_address])
         deployment_result = await current_client.deploy(deploy_tx, token=deploy_token)
         await current_client.wait_for_tx(deployment_result.transaction_hash)
         router_address = deployment_result.contract_address

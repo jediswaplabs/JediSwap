@@ -124,9 +124,12 @@ func __setup__{syscall_ptr: felt*, range_check_ptr}() {
         context.user_1_address = ids.user_1_address
         context.user_2_address = ids.user_2_address
         context.fee_recipient_address = ids.fee_recipient_address
+        context.declared_pair_proxy_class_hash = declare("contracts/PairProxy.cairo").class_hash
         context.declared_pair_class_hash = declare("contracts/Pair.cairo").class_hash
-        context.factory_address = deploy_contract("contracts/Factory.cairo", [context.declared_pair_class_hash, context.deployer_address]).contract_address
-        context.router_address = deploy_contract("contracts/Router.cairo", [context.factory_address]).contract_address
+        context.declared_factory_class_hash = declare("contracts/Factory.cairo").class_hash
+        context.factory_address = deploy_contract("contracts/FactoryProxy.cairo", [context.declared_factory_class_hash, context.declared_pair_proxy_class_hash, context.declared_pair_class_hash, context.deployer_address]).contract_address
+        context.declared_router_class_hash = declare("contracts/Router.cairo").class_hash
+        context.router_address = deploy_contract("contracts/RouterProxy.cairo", [context.declared_router_class_hash, context.factory_address, context.deployer_address]).contract_address
         context.token_0_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [11, 1, 18, 0, 0, context.deployer_address, context.deployer_address]).contract_address
         context.token_1_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [22, 2, 6, 0, 0, context.deployer_address, context.deployer_address]).contract_address
         ids.factory_address = context.factory_address

@@ -315,6 +315,12 @@ func klast{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() ->
     return (res,);
 }
 
+@view
+func test_v2_contract{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    ) -> (success: felt) {
+    return (success=1);
+}
+
 //
 // Externals ERC20
 //

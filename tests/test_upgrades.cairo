@@ -29,10 +29,22 @@ namespace IRouter {
 
 @contract_interface
 namespace IProxy {
+    func upgrade(new_implementation: felt) {
+    }
+
     func set_admin(new_admin: felt) {
     }
 
     func get_admin() -> (admin: felt) {
+    }
+
+    func get_implementation_hash() -> (implementation: felt) {
+    }
+}
+
+@contract_interface
+namespace IV2 {
+    func test_v2_contract() -> (success: felt) {
     }
 }
 
@@ -73,156 +85,117 @@ func __setup__{syscall_ptr: felt*, range_check_ptr}() {
 }
 
 @external
-func test_set_fee_to_non_fee_to_setter{syscall_ptr: felt*, range_check_ptr}() {
-    tempvar factory_address;
-
-    %{ ids.factory_address = context.factory_address %}
-
-    %{ expect_revert(error_message="Factory::set_fee_to::Caller must be fee to setter") %}
-    IFactory.set_fee_to(contract_address=factory_address, new_fee_to=200);
-
-    return ();
-}
-
-@external
-func test_set_fee_to{syscall_ptr: felt*, range_check_ptr}() {
-    tempvar deployer_address;
-    tempvar factory_address;
-
-    %{
-        ids.deployer_address = context.deployer_address
-        ids.factory_address = context.factory_address
-    %}
-
-    %{ stop_prank = start_prank(ids.deployer_address, target_contract_address=ids.factory_address) %}
-    tempvar new_fee_to_address = 200;
-    IFactory.set_fee_to(contract_address=factory_address, new_fee_to=new_fee_to_address);
-    %{ stop_prank() %}
-
-    let (get_fee_to_address) = IFactory.get_fee_to(contract_address=factory_address);
-    assert get_fee_to_address = new_fee_to_address;
-
-    return ();
-}
-
-@external
-func test_update_fee_to_setter_non_fee_to_setter{syscall_ptr: felt*, range_check_ptr}() {
-    tempvar factory_address;
-
-    %{ ids.factory_address = context.factory_address %}
-
-    %{ expect_revert(error_message="Factory::set_fee_to_setter::Caller must be fee to setter") %}
-    IFactory.set_fee_to_setter(contract_address=factory_address, new_fee_to_setter=200);
-
-    return ();
-}
-
-@external
-func test_update_fee_to_setter_zero{syscall_ptr: felt*, range_check_ptr}() {
-    tempvar deployer_address;
-    tempvar factory_address;
-
-    %{
-        ids.deployer_address = context.deployer_address
-        ids.factory_address = context.factory_address
-    %}
-
-    %{ stop_prank = start_prank(ids.deployer_address, target_contract_address=ids.factory_address) %}
-    %{ expect_revert(error_message="Factory::set_fee_to_setter::new_fee_to_setter must be non zero") %}
-    IFactory.set_fee_to_setter(contract_address=factory_address, new_fee_to_setter=0);
-    %{ stop_prank() %}
-
-    return ();
-}
-
-@external
-func test_update_fee_to_setter{syscall_ptr: felt*, range_check_ptr}() {
-    tempvar deployer_address;
-    tempvar factory_address;
-
-    %{
-        ids.deployer_address = context.deployer_address
-        ids.factory_address = context.factory_address
-    %}
-
-    %{ stop_prank = start_prank(ids.deployer_address, target_contract_address=ids.factory_address) %}
-    tempvar new_fee_to_setter_address = 200;
-    IFactory.set_fee_to_setter(
-        contract_address=factory_address, new_fee_to_setter=new_fee_to_setter_address
-    );
-    %{ stop_prank() %}
-
-    let (get_fee_to_setter_address) = IFactory.get_fee_to_setter(contract_address=factory_address);
-    assert get_fee_to_setter_address = new_fee_to_setter_address;
-
-    return ();
-}
-
-@external
-func test_update_admin_non_admin{syscall_ptr: felt*, range_check_ptr}() {
+func test_upgrade_implementation_non_admin{syscall_ptr: felt*, range_check_ptr}() {
     tempvar factory_address;
     tempvar router_address;
     tempvar pair_address;
+    tempvar declared_factory_v2_class_hash;
+    tempvar declared_router_v2_class_hash;
+    tempvar declared_pair_v2_class_hash;
 
     %{ 
         ids.factory_address = context.factory_address
         ids.router_address = context.router_address
         ids.pair_address = context.pair_address
+        ids.declared_factory_v2_class_hash = declare("contracts/test/FactoryV2.cairo").class_hash
+        ids.declared_router_v2_class_hash = declare("contracts/test/RouterV2.cairo").class_hash
+        ids.declared_pair_v2_class_hash = declare("contracts/test/PairV2.cairo").class_hash
     %}
 
     %{ expect_revert(error_message="Proxy: caller is not admin") %}
-    IProxy.set_admin(contract_address=factory_address, new_admin=200);
+    IProxy.upgrade(contract_address=factory_address, new_implementation=declared_factory_v2_class_hash);
 
     %{ expect_revert(error_message="Proxy: caller is not admin") %}
-    IProxy.set_admin(contract_address=router_address, new_admin=200);
+    IProxy.upgrade(contract_address=router_address, new_implementation=declared_router_v2_class_hash);
 
     %{ expect_revert(error_message="Proxy: caller is not admin") %}
-    IProxy.set_admin(contract_address=pair_address, new_admin=200);
+    IProxy.upgrade(contract_address=pair_address, new_implementation=declared_pair_v2_class_hash);
 
     return ();
 }
 
 @external
-func test_update_admin{syscall_ptr: felt*, range_check_ptr}() {
+func test_upgrade_implementation{syscall_ptr: felt*, range_check_ptr}() {
     tempvar deployer_address;
     tempvar factory_address;
     tempvar router_address;
     tempvar pair_address;
+    tempvar declared_factory_v2_class_hash;
+    tempvar declared_router_v2_class_hash;
+    tempvar declared_pair_v2_class_hash;
 
     %{
         ids.deployer_address = context.deployer_address
         ids.factory_address = context.factory_address
         ids.router_address = context.router_address
         ids.pair_address = context.pair_address
+        ids.declared_factory_v2_class_hash = declare("contracts/test/FactoryV2.cairo").class_hash
+        ids.declared_router_v2_class_hash = declare("contracts/test/RouterV2.cairo").class_hash
+        ids.declared_pair_v2_class_hash = declare("contracts/test/PairV2.cairo").class_hash
     %}
 
+    //  Upgrade Factory implementation contract
+
+    %{ expect_revert(error_type="ENTRY_POINT_NOT_FOUND_IN_CONTRACT") %}
+    IV2.test_v2_contract(contract_address=factory_address);
+
+    let (fee_to_setter_address_initial) = IFactory.get_fee_to_setter(contract_address=factory_address);
+
     %{ stop_prank = start_prank(ids.deployer_address, target_contract_address=ids.factory_address) %}
-    tempvar new_admin = 200;
-    IProxy.set_admin(
-        contract_address=factory_address, new_admin=new_admin
+    IProxy.upgrade(
+        contract_address=factory_address, new_implementation=declared_factory_v2_class_hash
     );
     %{ stop_prank() %}
 
-    let (factory_admin) = IProxy.get_admin(contract_address=factory_address);
-    assert factory_admin = new_admin;
+    let (factory_implementation) = IProxy.get_implementation_hash(contract_address=factory_address);
+    assert factory_implementation = declared_factory_v2_class_hash;
+
+    let (factory_v2_success) = IV2.test_v2_contract(contract_address=factory_address);
+    assert factory_v2_success = 1;
+
+    // Assert factory state is persisted after upgrade
+    let (fee_to_setter_address_final) = IFactory.get_fee_to_setter(contract_address=factory_address);
+    assert fee_to_setter_address_final = fee_to_setter_address_initial;
+
+    // Upgrade Router impelementation contract
+
+    %{ expect_revert(error_type="ENTRY_POINT_NOT_FOUND_IN_CONTRACT") %}
+    IV2.test_v2_contract(contract_address=deployer_address);
+
+    let (factory_address_from_router_initial) = IRouter.factory(contract_address=router_address);
 
     %{ stop_prank = start_prank(ids.deployer_address, target_contract_address=ids.router_address) %}
-    IProxy.set_admin(
-        contract_address=router_address, new_admin=new_admin
+    IProxy.upgrade(
+        contract_address=router_address, new_implementation=declared_router_v2_class_hash
     );
     %{ stop_prank() %}
 
-    let (router_admin) = IProxy.get_admin(contract_address=router_address);
-    assert router_admin = new_admin;
+    let (router_implementation) = IProxy.get_implementation_hash(contract_address=router_address);
+    assert router_implementation = declared_router_v2_class_hash;
+
+    let (router_v2_success) = IV2.test_v2_contract(contract_address=router_address);
+    assert router_v2_success = 1;
+
+    // Assert Router state is persisted after upgrade
+    let (factory_address_from_router_final) = IRouter.factory(contract_address=router_address);
+    assert factory_address_from_router_final = factory_address_from_router_initial;
+
+    //  Upgrade Pair implementation contract
+
+    %{ expect_revert(error_type="ENTRY_POINT_NOT_FOUND_IN_CONTRACT") %}
+    IV2.test_v2_contract(contract_address=pair_address);
 
     %{ stop_prank = start_prank(ids.deployer_address, target_contract_address=ids.pair_address) %}
-    IProxy.set_admin(
-        contract_address=pair_address, new_admin=new_admin
+    IProxy.upgrade(
+        contract_address=pair_address, new_implementation=declared_pair_v2_class_hash
     );
     %{ stop_prank() %}
 
-    let (pair_admin) = IProxy.get_admin(contract_address=pair_address);
-    assert pair_admin = new_admin;
+    let (pair_implementation) = IProxy.get_implementation_hash(contract_address=pair_address);
+    assert pair_implementation = declared_pair_v2_class_hash;
+
+    let (pair_v2_success) = IV2.test_v2_contract(contract_address=pair_address);
+    assert pair_v2_success = 1;
 
     return ();
 }

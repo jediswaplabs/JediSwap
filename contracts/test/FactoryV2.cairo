@@ -160,6 +160,12 @@ func get_pair_contract_class_hash{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*
     return _pair_proxy_contract_class_hash.read();
 }
 
+@view
+func test_v2_contract{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    ) -> (success: felt) {
+    return (success=1);
+}
+
 //
 // Setters
 //
