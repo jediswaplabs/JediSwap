@@ -1,2 +1,2 @@
-starknet.py>=0.4.5-alpha
-starknet-devnet>=0.3.1
+starknet.py>=0.10.2-alpha
+starknet-devnet>=0.4.1
