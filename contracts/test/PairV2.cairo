@@ -22,7 +22,6 @@ from starkware.cairo.common.math import (
     assert_not_equal,
 )
 from starkware.cairo.common.math_cmp import is_not_zero, is_le
-from starkware.cairo.common.pow import pow
 from starkware.cairo.common.uint256 import (
     Uint256,
     uint256_le,
@@ -316,8 +315,9 @@ func klast{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() ->
 }
 
 @view
-func test_v2_contract{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    ) -> (success: felt) {
+func test_v2_contract{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+    success: felt
+) {
     return (success=1);
 }
 
@@ -700,9 +700,8 @@ func swap{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 
     let (reserve0_mul_reserve1: Uint256) = uint256_checked_mul(reserve0, reserve1);
 
-    let (local multiplier) = pow(1000, 2);
     let (reserve0_mul_reserve1_mul_multiplier: Uint256) = uint256_felt_checked_mul(
-        reserve0_mul_reserve1, multiplier
+        reserve0_mul_reserve1, 1000000
     );
 
     let (is_balance_adjusted_mul_greater_than_equal_final_reserve_mul) = uint256_le(
