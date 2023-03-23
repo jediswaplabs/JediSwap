@@ -3,7 +3,6 @@ from starknet_py.contract import Contract
 from starknet_py.net.gateway_client import GatewayClient
 from starknet_py.net.account.account_client import AccountClient, KeyPair
 from starknet_py.transactions.declare import make_declare_tx
-from starknet_py.transactions.deploy import make_deploy_tx
 from starknet_py.net.models import StarknetChainId
 from pathlib import Path
 from base_funcs import *
@@ -57,37 +56,45 @@ async def main():
     ## Deploy factory and router
     
     if factory_address is None:
-        declare_tx = make_declare_tx(compiled_contract=Path("build/Pair.json").read_text())
-        declared_pair_class = await current_client.declare(declare_tx, token=deploy_token)
-        declared_pair_class_hash = declared_pair_class.class_hash
+        declare_transaction = await deployer.sign_declare_transaction(compiled_contract=Path("build/Pair.json").read_text(), max_fee=int(1e16))
+        resp = await deployer.client.declare(transaction=declare_transaction)
+        await deployer.client.wait_for_tx(resp.transaction_hash)
+        declared_pair_class_hash = resp.class_hash
         print(f"Declared pair class hash: {declared_pair_class_hash}, {hex(declared_pair_class_hash)}")
-        declare_tx = make_declare_tx(compiled_contract=Path("build/PairProxy.json").read_text())
-        declared_pair_proxy_class = await current_client.declare(declare_tx, token=deploy_token)
-        declared_pair_proxy_class_hash = declared_pair_proxy_class.class_hash
+        declare_transaction = await deployer.sign_declare_transaction(compiled_contract=Path("build/PairProxy.json").read_text(), max_fee=int(1e16))
+        resp = await deployer.client.declare(transaction=declare_transaction)
+        await deployer.client.wait_for_tx(resp.transaction_hash)
+        declared_pair_proxy_class_hash = resp.class_hash
         print(f"Declared pair proxy class hash: {declared_pair_proxy_class_hash}, {hex(declared_pair_proxy_class_hash)}")
-        declare_tx = make_declare_tx(compiled_contract=Path("build/Factory.json").read_text())
-        declared_factory_class = await current_client.declare(declare_tx, token=deploy_token)
-        declared_factory_class_hash = declared_factory_class.class_hash
+        declare_result = await Contract.declare(account=deployer, compiled_contract=Path("build/Factory.json").read_text(), max_fee=int(1e16))
+        await declare_result.wait_for_acceptance()
+        declared_factory_class_hash = declare_result.class_hash
         print(f"Declared factory class hash: {declared_factory_class_hash}, {hex(declared_factory_class_hash)}")
-        deploy_tx = make_deploy_tx(compiled_contract=Path("build/FactoryProxy.json").read_text(), constructor_calldata=[declared_factory_class_hash, declared_pair_proxy_class_hash, declared_pair_class_hash, fee_to_setter_address])
-        deployment_result = await current_client.deploy(deploy_tx, token=deploy_token)
-        await current_client.wait_for_tx(deployment_result.transaction_hash)
-        factory_address = deployment_result.contract_address
+        declare_result = await Contract.declare(account=deployer, compiled_contract=Path("build/FactoryProxy.json").read_text(), max_fee=int(1e16))
+        await declare_result.wait_for_acceptance()
+        declared_factory_proxy_class_hash = declare_result.class_hash
+        print(f"Declared factory proxy class hash: {declared_factory_proxy_class_hash}, {hex(declared_factory_proxy_class_hash)}")
+        deploy_result = await declare_result.deploy(constructor_args=[declared_factory_class_hash, declared_pair_proxy_class_hash, declared_pair_class_hash, fee_to_setter_address], max_fee=int(1e16))
+        await deploy_result.wait_for_acceptance()
+        factory_address = deploy_result.deployed_contract.address
     factory = Contract(address=factory_address, abi=json.loads(Path("build/Factory_abi.json").read_text()), client=current_client)
     print(f"Factory deployed: {factory.address}, {hex(factory.address)}")
     result = await factory.functions["get_fee_to_setter"].call()
     print(f"Fee to setter: {result.address}, {hex(result.address)}")
 
     if router_address is None:
-        declare_tx = make_declare_tx(compiled_contract=Path("build/Router.json").read_text())
-        declared_router_class = await current_client.declare(declare_tx, token=deploy_token)
-        declared_router_class_hash = declared_router_class.class_hash
+        declare_result = await Contract.declare(account=deployer, compiled_contract=Path("build/Router.json").read_text(), max_fee=int(1e16))
+        await declare_result.wait_for_acceptance()
+        declared_router_class_hash = declare_result.class_hash
         print(f"Declared router class hash: {declared_router_class_hash}, {hex(declared_router_class_hash)}")
-        deploy_tx = make_deploy_tx(compiled_contract=Path("build/RouterProxy.json").read_text(), constructor_calldata=[declared_router_class_hash, factory.address, fee_to_setter_address])
-        deployment_result = await current_client.deploy(deploy_tx, token=deploy_token)
-        await current_client.wait_for_tx(deployment_result.transaction_hash)
-        router_address = deployment_result.contract_address
-    router = await Contract.from_address(router_address, current_client)
+        declare_result = await Contract.declare(account=deployer, compiled_contract=Path("build/RouterProxy.json").read_text(), max_fee=int(1e16))
+        await declare_result.wait_for_acceptance()
+        declared_router_proxy_class_hash = declare_result.class_hash
+        print(f"Declared router proxy class hash: {declared_router_proxy_class_hash}, {hex(declared_router_proxy_class_hash)}")
+        deploy_result = await declare_result.deploy(constructor_args=[declared_router_class_hash, factory.address, fee_to_setter_address], max_fee=int(1e16))
+        await deploy_result.wait_for_acceptance()
+        router_address = deploy_result.deployed_contract.address
+    router = Contract(address=router_address, abi=json.loads(Path("build/Router_abi.json").read_text()), client=current_client)
     print(f"Router deployed: {router.address}, {hex(router.address)}")
 
     # ## Deploy and Mint tokens
