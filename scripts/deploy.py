@@ -1,9 +1,11 @@
 import asyncio
 from starknet_py.contract import Contract
 from starknet_py.net.gateway_client import GatewayClient
-from starknet_py.net.account.account_client import AccountClient, KeyPair
-from starknet_py.transactions.declare import make_declare_tx
+from starknet_py.net.account.account import Account
+from starknet_py.net.signer.stark_curve_signer import KeyPair
 from starknet_py.net.models import StarknetChainId
+from starknet_py.hash.casm_class_hash import compute_casm_class_hash
+from starknet_py.net.schemas.gateway import CasmClassSchema
 from pathlib import Path
 from base_funcs import *
 import sys
@@ -25,12 +27,11 @@ async def main():
         deployed_accounts_url = f"{local_network}/predeployed_accounts" 
         response = requests.get(deployed_accounts_url)
         deployed_accounts = response.json()
-        deployer = AccountClient(
+        deployer = Account(
             client=current_client, 
             address=deployed_accounts[0]["address"],
             key_pair=KeyPair(private_key=int(deployed_accounts[0]["private_key"], 16), public_key=int(deployed_accounts[0]["public_key"], 16)),
             chain=StarknetChainId.TESTNET,
-            supported_tx_version=1
             )
         print(f"Deployer Address: {deployer.address}, {hex(deployer.address)}")
         if fee_to_setter_address is None:
@@ -65,19 +66,22 @@ async def main():
         resp = await deployer.client.declare(transaction=declare_transaction)
         await deployer.client.wait_for_tx(resp.transaction_hash)
         declared_pair_proxy_class_hash = resp.class_hash
-        print(f"Declared pair proxy class hash: {declared_pair_proxy_class_hash}, {hex(declared_pair_proxy_class_hash)}")
-        declare_result = await Contract.declare(account=deployer, compiled_contract=Path("build/Factory.json").read_text(), max_fee=int(1e16))
-        await declare_result.wait_for_acceptance()
-        declared_factory_class_hash = declare_result.class_hash
+        print(f"Declared pair proxy class hash: {declared_pair_proxy_class_hash}, {hex(declared_pair_proxy_class_hash)}")        
+        casm_class = CasmClassSchema().loads(Path("build/FactoryC1.casm").read_text())
+        casm_class_hash = compute_casm_class_hash(casm_class)
+        declare_transaction = await deployer.sign_declare_v2_transaction(compiled_contract=Path("build/FactoryC1.json").read_text(), compiled_class_hash=casm_class_hash, max_fee=int(1e16))
+        resp = await deployer.client.declare(transaction=declare_transaction)
+        await deployer.client.wait_for_tx(resp.transaction_hash)
+        declared_factory_class_hash = resp.class_hash
         print(f"Declared factory class hash: {declared_factory_class_hash}, {hex(declared_factory_class_hash)}")
-        declare_result = await Contract.declare(account=deployer, compiled_contract=Path("build/FactoryProxy.json").read_text(), max_fee=int(1e16))
+        declare_result = await Contract.declare(account=deployer, compiled_contract=Path("build/FactoryProxy.json").read_text(),  max_fee=int(1e16))
         await declare_result.wait_for_acceptance()
         declared_factory_proxy_class_hash = declare_result.class_hash
         print(f"Declared factory proxy class hash: {declared_factory_proxy_class_hash}, {hex(declared_factory_proxy_class_hash)}")
         deploy_result = await declare_result.deploy(constructor_args=[declared_factory_class_hash, declared_pair_proxy_class_hash, declared_pair_class_hash, fee_to_setter_address], max_fee=int(1e16))
         await deploy_result.wait_for_acceptance()
         factory_address = deploy_result.deployed_contract.address
-    factory = Contract(address=factory_address, abi=json.loads(Path("build/Factory_abi.json").read_text()), client=current_client)
+    factory = Contract(address=factory_address, abi=json.loads(Path("build/Factory_abi.json").read_text()), provider=deployer)
     print(f"Factory deployed: {factory.address}, {hex(factory.address)}")
     result = await factory.functions["get_fee_to_setter"].call()
     print(f"Fee to setter: {result.address}, {hex(result.address)}")
@@ -94,7 +98,7 @@ async def main():
         deploy_result = await declare_result.deploy(constructor_args=[declared_router_class_hash, factory.address, fee_to_setter_address], max_fee=int(1e16))
         await deploy_result.wait_for_acceptance()
         router_address = deploy_result.deployed_contract.address
-    router = Contract(address=router_address, abi=json.loads(Path("build/Router_abi.json").read_text()), client=current_client)
+    router = Contract(address=router_address, abi=json.loads(Path("build/Router_abi.json").read_text()), provider=deployer)
     print(f"Router deployed: {router.address}, {hex(router.address)}")
 
     # ## Deploy and Mint tokens
