@@ -10,13 +10,12 @@ mod FactoryC1 {
     use array::ArrayTrait;
     use array::SpanTrait;
     use zeroable::Zeroable;
-    // use starknet::PartialOrd;
     use starknet::ContractAddress;
     use starknet::ContractAddressZeroable;
     use starknet::ClassHash;
     use starknet::ClassHashZeroable;
     use starknet::get_caller_address;
-    use starknet::get_block_info;
+    use starknet::get_block_timestamp;
     use starknet::contract_address_const;
     use starknet::contract_address_to_felt252;
     use starknet::class_hash::class_hash_to_felt252;
@@ -129,7 +128,7 @@ mod FactoryC1 {
     // @return amounts Required output amount array
     #[view]
     fn get_amounts_out(amountIn: u256, path: Array::<ContractAddress>) -> Array::<u256> {
-        _get_amounts_out(amountIn, path)
+        _get_amounts_out(amountIn, path.span())
     }
 
     // @notice Performs chained get_amount_in calculations on any number of pairs
@@ -140,7 +139,7 @@ mod FactoryC1 {
     // @return amounts Required input amount array
     #[view]
     fn get_amounts_in(amountOut: u256, path: Array::<ContractAddress>) -> Array::<u256> {
-        _get_amounts_in(amountOut, path)
+        _get_amounts_in(amountOut, path.span())
     }
 
     //
@@ -214,8 +213,8 @@ mod FactoryC1 {
         let pairDispatcher = IPairDispatcher {contract_address: pair};
         let (amount0, amount1) = pairDispatcher.burn(to);
         let (token0, _) = _sort_tokens(tokenA, tokenB);
-        let mut amountA: u256 = 0_u256;
-        let mut amountB: u256 = 0_u256;
+        let mut amountA = u256 { low: 0_u128, high: 0_u128 };
+        let mut amountB = u256 { low: 0_u128, high: 0_u128 };
         if tokenA == token0 {
             amountA = amount0;
             amountB = amount1;
@@ -245,14 +244,13 @@ mod FactoryC1 {
         amountIn: u256, amountOutMin: u256, path: Array::<ContractAddress>, to: ContractAddress, deadline: u64
     ) -> Array::<u256> {
         _ensure_deadline(deadline);
-        let mut amounts = _get_amounts_out(amountIn, path);
+        let mut amounts = _get_amounts_out(amountIn, path.span());
         assert(*amounts.at(amounts.len() - 1_u32) >= amountOutMin, 'insufficient output amount');
         let pair = _pair_for(*path.at(0_u32), *path.at(1_u32));
         let sender = get_caller_address();
         let pairERC20Dispatcher = IERC20Dispatcher {contract_address: *path.at(0_u32)};
-        let amountToTransfer: u256 = *amounts.at(0_u32);
-        pairERC20Dispatcher.transferFrom(sender, pair, amountToTransfer);
-        _swap(0_u32, path.len(), amounts, path.span(), to);
+        pairERC20Dispatcher.transferFrom(sender, pair, *amounts.at(0_u32));
+        _swap(0_u32, path.len(), ref amounts, path.span(), to);
         amounts
     }
 
@@ -271,13 +269,13 @@ mod FactoryC1 {
         amountOut: u256, amountInMax: u256, path: Array::<ContractAddress>, to: ContractAddress, deadline: u64
     ) -> Array::<u256> {
         _ensure_deadline(deadline);
-        let amounts = _get_amounts_in(amountOut, path);
+        let mut amounts = _get_amounts_in(amountOut, path.span());
         assert(*amounts.at(0_u32) <= amountInMax, 'excessive input amount');
         let pair = _pair_for(*path.at(0_u32), *path.at(1_u32));
         let sender = get_caller_address();
         let pairERC20Dispatcher = IERC20Dispatcher {contract_address: *path.at(0_u32)};
         pairERC20Dispatcher.transferFrom(sender, pair, *amounts.at(0_u32));
-        _swap(0_u32, path.len(), amounts, path.span(), to);
+        _swap(0_u32, path.len(), ref amounts, path.span(), to);
         amounts
     }
 
@@ -288,7 +286,7 @@ mod FactoryC1 {
     fn _ensure_deadline(
         deadline: u64
     ) {
-        let block_timestamp = get_block_info().block_timestamp;
+        let block_timestamp = get_block_timestamp();
         assert(deadline >= block_timestamp, 'expired');
     }
 
@@ -310,7 +308,7 @@ mod FactoryC1 {
 
         let (reserveA, reserveB) = _get_reserves(tokenA, tokenB);
 
-        if (reserveA == 0_u256 & reserveB == 0_u256) {
+        if (reserveA == u256 { low: 0_u128, high: 0_u128 } & reserveB == u256 { low: 0_u128, high: 0_u128 }) {
             return (amountADesired, amountBDesired);
         } else {
             let amountBOptimal = _quote(amountADesired, reserveA, reserveB);
@@ -326,15 +324,15 @@ mod FactoryC1 {
         }
     }
 
-    fn _swap(current_index: u32, amounts_len: u32, amounts: Array::<u256>, path: Span::<ContractAddress>, _to: ContractAddress
+    fn _swap(current_index: u32, amounts_len: u32, ref amounts: Array::<u256>, path: Span::<ContractAddress>, _to: ContractAddress
     ) {
         let factory = _factory::read();
         if (current_index == amounts_len - 1_u32) {
             return ();
         }
         let (token0, _) = _sort_tokens(*path.at(current_index), *path.at(current_index + 1_u32));
-        let mut amount0Out: u256 = 0_u256;
-        let mut amount1Out: u256 = 0_u256;
+        let mut amount0Out = u256 { low: 0_u128, high: 0_u128 };
+        let mut amount1Out = u256 { low: 0_u128, high: 0_u128 };
         if (*path.at(current_index) == token0) {
             amount1Out = *amounts.at(current_index + 1_u32);
         } else {
@@ -348,7 +346,7 @@ mod FactoryC1 {
         let data = ArrayTrait::<felt252>::new();
         let pairDispatcher = IPairDispatcher {contract_address: pair};
         pairDispatcher.swap(amount0Out, amount1Out, to, data);
-        return _swap(current_index + 1_u32, amounts_len, amounts, path, _to);
+        // return _swap(current_index + 1_u32, amounts_len, ref amounts, path, _to);   // TODO solve compilation  
     }
 
     fn _sort_tokens(tokenA: ContractAddress, tokenB: ContractAddress) -> (ContractAddress, ContractAddress) {
@@ -392,78 +390,104 @@ mod FactoryC1 {
     //
 
     fn _quote(amountA: u256, reserveA: u256, reserveB: u256) -> u256 {
-        assert(amountA > 0_u256, 'insufficient amount');
-        assert(reserveA > 0_u256 & reserveB > 0_u256, 'insufficient liquidity');
+        assert(amountA > u256 { low: 0_u128, high: 0_u128 }, 'insufficient amount');
+        assert(reserveA > u256 { low: 0_u128, high: 0_u128 } & reserveB > u256 { low: 0_u128, high: 0_u128 }, 'insufficient liquidity');
 
-        let amountB = (amountA * reserveB) / reserveA;
-        amountB
+        let amountB = (amountA.low * reserveB.low) / reserveA.low;
+        u256 { low: amountB, high: 0_u128 }      // TODO official support for div u256
     }
 
     fn _get_amount_out(amountIn: u256, reserveIn: u256, reserveOut: u256) -> u256 {
-        assert(amountIn > 0_u256, 'insufficient input amount');
-        assert(reserveIn > 0_u256 & reserveOut > 0_u256, 'insufficient liquidity');
+        assert(amountIn > u256 { low: 0_u128, high: 0_u128 }, 'insufficient input amount');
+        assert(reserveIn > u256 { low: 0_u128, high: 0_u128 } & reserveOut > u256 { low: 0_u128, high: 0_u128 }, 'insufficient liquidity');
 
-        let amountIn_with_fee = amountIn * 997_u256;
+        let amountIn_with_fee = amountIn * u256 { low: 997_u128, high: 0_u128 };
         let numerator = amountIn_with_fee * reserveOut;
-        let denominator = (reserveIn * 1000_u256) + amountIn_with_fee;
+        let denominator = (reserveIn * u256 { low: 1000_u128, high: 0_u128 }) + amountIn_with_fee;
 
-        numerator / denominator
+        u256 { low: numerator.low / denominator.low, high: 0_u128 }      // TODO official support for div u256
+        // numerator / denominator
     }
 
     fn _get_amount_in(amountOut: u256, reserveIn: u256, reserveOut: u256) -> u256 {
-        assert(amountOut > 0_u256, 'insufficient output amount');
-        assert(reserveIn > 0_u256 & reserveOut > 0_u256, 'insufficient liquidity');
+        assert(amountOut > u256 { low: 0_u128, high: 0_u128 }, 'insufficient output amount');
+        assert(reserveIn > u256 { low: 0_u128, high: 0_u128 } & reserveOut > u256 { low: 0_u128, high: 0_u128 }, 'insufficient liquidity');
 
-        let numerator = reserveIn * amountOut * 1000_u256;
-        let denominator = (reserveOut - amountOut) * 997_u256;
+        let numerator = reserveIn * amountOut * u256 { low: 1000_u128, high: 0_u128 };
+        let denominator = (reserveOut - amountOut) * u256 { low: 997_u128, high: 0_u128 };
 
-        (numerator / denominator) + 1_u256
+        u256 { low: numerator.low / denominator.low, high: 0_u128 }  + u256 { low: 1_u128, high: 0_u128 }     // TODO official support for div u256
+        // (numerator / denominator) + u256 { low: 1_u128, high: 0_u128 }
     }
 
-    fn _get_amounts_out(amountIn: u256, path: Array::<ContractAddress>) -> Array::<u256> {
+    fn _get_amounts_out(amountIn: u256, path: Span::<ContractAddress>) -> Array::<u256> {
         assert(path.len() >= 2_u32, 'invalid path');
         let mut amounts = ArrayTrait::<u256>::new();
-        _build_amounts_out(amountIn, 0_u32, path, ref amounts);
-        amounts
-    }
+        amounts.append(amountIn);
+        let mut current_index = 0_u32;
+        loop {
+            match gas::withdraw_gas_all(get_builtin_costs()) {
+                Option::Some(_) => {
+                },
+                Option::None(_) => {
+                    let mut err_data = array::array_new();
+                    array::array_append(ref err_data, 'Out of gas');
+                    panic(err_data)
+                },
+            }
 
-    fn _build_amounts_out(amountIn: u256, current_index: u32, path: Array::<ContractAddress>, ref amounts: Array::<u256>) {
-        
-        if current_index == path.len() {
-            return ();
-        }
-
-        if current_index == 0_u32 {
-            amounts.append(amountIn);
-        } else {
-            let (reserveIn, reserveOut) = _get_reserves(*path.at(current_index - 1_u32), *path.at(current_index));
-            let amountOut = _get_amount_out(*amounts.at(current_index - 1_u32), reserveIn, reserveOut);
-            amounts.append(amountOut);
-        }
-        return _build_amounts_out(amountIn, current_index + 1_u32, path, ref amounts);
-    }
-
-    fn _get_amounts_in(amountOut: u256, path: Array::<ContractAddress>) -> Array::<u256> {
-        assert(path.len() >= 2_u32, 'invalid path');
-        let mut amounts = ArrayTrait::<u256>::new();
-        _build_amounts_in(amountOut, path.len() - 1_u32, path, ref amounts);
-        amounts
-    }
-
-    fn _build_amounts_in(amountOut: u256, current_index: u32, path: Array::<ContractAddress>, ref amounts: Array::<u256>) -> Array::<u256> {
-
-        if (current_index == path.len() - 1_u32) {
-            amounts.append(amountOut);
-        } else {
+            if (current_index == path.len() - 1_u32) {
+                break true;
+            }
             let (reserveIn, reserveOut) = _get_reserves(*path.at(current_index), *path.at(current_index + 1_u32));
-            let amountIn = _get_amount_in(*amounts.at(path.len() - 1_u32 - current_index), reserveIn, reserveOut);
-            amounts.append(amountIn);
-        }
+            amounts.append(_get_amount_out(*amounts.at(current_index), reserveIn, reserveOut));
+            current_index += 1_u32;
+        };
+        amounts
+    }
 
-        if (current_index == 0_u32) {
-            return amounts;
-        }
+    fn _get_amounts_in(amountOut: u256, path: Span::<ContractAddress>) -> Array::<u256> {
+        assert(path.len() >= 2_u32, 'invalid path');
+        let mut amounts = ArrayTrait::<u256>::new();
+        amounts.append(amountOut);
+        let mut current_index = path.len() - 1_u32;
+        loop {
+            match gas::withdraw_gas_all(get_builtin_costs()) {
+                Option::Some(_) => {
+                },
+                Option::None(_) => {
+                    let mut err_data = array::array_new();
+                    array::array_append(ref err_data, 'Out of gas');
+                    panic(err_data)
+                },
+            }
 
-        return _build_amounts_in(amountOut, current_index - 1_u32, path, ref amounts);
+            if (current_index == 0_u32) {
+                break true;
+            }
+            let (reserveIn, reserveOut) = _get_reserves(*path.at(current_index - 1_u32), *path.at(current_index));
+            amounts.append(_get_amount_in(*amounts.at(path.len() - current_index), reserveIn, reserveOut));
+            current_index -= 1_u32;
+        };
+        let mut final_amounts = ArrayTrait::<u256>::new();
+        current_index = 0_u32;
+        loop {      // reversing array, TODO remove when set comes.
+            match gas::withdraw_gas_all(get_builtin_costs()) {
+                Option::Some(_) => {
+                },
+                Option::None(_) => {
+                    let mut err_data = array::array_new();
+                    array::array_append(ref err_data, 'Out of gas');
+                    panic(err_data)
+                },
+            }
+            
+            if (current_index == amounts.len()) {
+                break true;
+            }
+            final_amounts.append(*amounts.at(amounts.len() - 1_u32 - current_index));
+            current_index += 1_u32;
+        };
+        final_amounts
     }
 }

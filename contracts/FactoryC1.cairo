@@ -37,7 +37,6 @@ mod FactoryC1 {
 
     // @dev Emitted each time a pair is created via createPair
     // token0 is guaranteed to be strictly less than token1 by sort order.
-
     #[event]
     fn PairCreated(token0: ContractAddress, token1: ContractAddress, pair: ContractAddress, total_pairs: u32) {}
 
@@ -89,7 +88,24 @@ mod FactoryC1 {
     fn get_all_pairs() -> (u32, Array::<ContractAddress>) {  //Array::<ContractAddress>
         let mut all_pairs_array = ArrayTrait::<ContractAddress>::new();
         let num_pairs = _num_of_pairs::read();
-        _build_all_pairs_array(0_u32, num_pairs, ref all_pairs_array);
+        let mut current_index = 0_u32;
+        loop {
+            match gas::withdraw_gas_all(get_builtin_costs()) {
+                Option::Some(_) => {
+                },
+                Option::None(_) => {
+                    let mut err_data = array::array_new();
+                    array::array_append(ref err_data, 'Out of gas');
+                    panic(err_data)
+                },
+            }
+
+            if current_index == num_pairs {
+                break true;
+            }
+            all_pairs_array.append(_all_pairs::read(current_index));
+            current_index += 1_u32;
+        };
         (num_pairs, all_pairs_array)
     }
 
@@ -192,18 +208,10 @@ mod FactoryC1 {
     // Internals LIBRARY
     //
 
-    fn _build_all_pairs_array(current_index: u32, num_pairs:u32, ref all_pairs_array: Array::<ContractAddress>) {
-        if current_index == num_pairs {
-            return ();
-        }
-        all_pairs_array.append(_all_pairs::read(current_index));
-        // return _build_all_pairs_array(current_index + 1_u32, num_pairs, ref all_pairs_array); // TODO solve compilation
-    }
-
     fn _sort_tokens(tokenA: ContractAddress, tokenB: ContractAddress) -> (ContractAddress, ContractAddress) {
         assert(tokenA != tokenB, 'must not be identical');
-        let mut token0: ContractAddress = contract_address_const::<0>();
-        let mut token1: ContractAddress = contract_address_const::<0>();
+        let mut token0 = contract_address_const::<0>();
+        let mut token1 = contract_address_const::<0>();
         if u256_from_felt252(contract_address_to_felt252(tokenA)) < u256_from_felt252(contract_address_to_felt252(tokenB)) { // TODO token comparison directly
             token0 = tokenA;
             token1 = tokenB;

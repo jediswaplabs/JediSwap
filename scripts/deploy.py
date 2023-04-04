@@ -87,9 +87,12 @@ async def main():
     print(f"Fee to setter: {result.address}, {hex(result.address)}")
 
     if router_address is None:
-        declare_result = await Contract.declare(account=deployer, compiled_contract=Path("build/Router.json").read_text(), max_fee=int(1e16))
-        await declare_result.wait_for_acceptance()
-        declared_router_class_hash = declare_result.class_hash
+        casm_class = CasmClassSchema().loads(Path("build/RouterC1.casm").read_text())
+        casm_class_hash = compute_casm_class_hash(casm_class)
+        declare_transaction = await deployer.sign_declare_v2_transaction(compiled_contract=Path("build/RouterC1.json").read_text(), compiled_class_hash=casm_class_hash, max_fee=int(1e16))
+        resp = await deployer.client.declare(transaction=declare_transaction)
+        await deployer.client.wait_for_tx(resp.transaction_hash)
+        declared_router_class_hash = resp.class_hash
         print(f"Declared router class hash: {declared_router_class_hash}, {hex(declared_router_class_hash)}")
         declare_result = await Contract.declare(account=deployer, compiled_contract=Path("build/RouterProxy.json").read_text(), max_fee=int(1e16))
         await declare_result.wait_for_acceptance()
