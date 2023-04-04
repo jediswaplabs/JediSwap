@@ -6,7 +6,7 @@
 
 
 #[contract]
-mod FactoryC1 {
+mod RouterC1 {
     use array::ArrayTrait;
     use array::SpanTrait;
     use zeroable::Zeroable;

@@ -10,7 +10,7 @@
 
 #[contract]
 mod PairC1 {
-    use utils::erc20::ERC20;
+    use jediswap::utils::erc20::ERC20;
     use traits::Into;
     use traits::TryInto;
     use option::OptionTrait;
@@ -109,7 +109,7 @@ mod PairC1 {
     fn initializer(token0: ContractAddress, token1: ContractAddress, proxy_admin: ContractAddress
     ) {
         assert(!token0.is_zero() & !token1.is_zero(), 'must be non zero');
-        ERC20::initializer('JediSwap Pair', 'JEDI-P', 18);   //TODO ERC20 integration
+        ERC20::initializer('JediSwap Pair', 'JEDI-P');   //TODO ERC20 integration
         _locked::write(false);
         _token0::write(token0);
         _token1::write(token1);
