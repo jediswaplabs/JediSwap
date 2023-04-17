@@ -44,7 +44,7 @@ mod ERC20 {
         }
 
         fn decimals() -> u8 {
-            18_u8
+            18
         }
 
         fn total_supply() -> u256 {
@@ -115,6 +115,11 @@ mod ERC20 {
     }
 
     #[view]
+    fn balanceOf(account: ContractAddress) -> u256 {
+        ERC20::balance_of(account)
+    }
+
+    #[view]
     fn allowance(owner: ContractAddress, spender: ContractAddress) -> u256 {
         ERC20::allowance(owner, spender)
     }
@@ -126,6 +131,11 @@ mod ERC20 {
 
     #[external]
     fn transfer_from(sender: ContractAddress, recipient: ContractAddress, amount: u256) -> bool {
+        ERC20::transfer_from(sender, recipient, amount)
+    }
+
+    #[external]
+    fn transferFrom(sender: ContractAddress, recipient: ContractAddress, amount: u256) -> bool {
         ERC20::transfer_from(sender, recipient, amount)
     }
 
@@ -196,7 +206,7 @@ mod ERC20 {
 
     fn _spend_allowance(owner: ContractAddress, spender: ContractAddress, amount: u256) {
         let current_allowance = _allowances::read((owner, spender));
-        let ONES_MASK = 0xffffffffffffffffffffffffffffffff_u128;
+        let ONES_MASK = 0xffffffffffffffffffffffffffffffff;
         let is_unlimited_allowance =
             current_allowance.low == ONES_MASK & current_allowance.high == ONES_MASK;
         if !is_unlimited_allowance {

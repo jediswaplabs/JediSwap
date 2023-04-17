@@ -4,47 +4,41 @@
 // @dev Based on the Uniswap V2 Router
 //       https://github.com/Uniswap/v2-periphery/blob/master/contracts/UniswapV2Router02.sol
 
-
 #[contract]
 mod RouterC1 {
+    use traits::Into;
     use array::ArrayTrait;
     use array::SpanTrait;
     use zeroable::Zeroable;
     use starknet::ContractAddress;
     use starknet::ContractAddressZeroable;
-    use starknet::ClassHash;
-    use starknet::ClassHashZeroable;
     use starknet::get_caller_address;
     use starknet::get_block_timestamp;
     use starknet::contract_address_const;
     use starknet::contract_address_to_felt252;
-    use starknet::class_hash::class_hash_to_felt252;
     use integer::u256_from_felt252;
-    use starknet::syscalls::deploy_syscall;
 
     //
     // Interfaces
     //
     #[abi]
     trait IERC20 {
-        fn transferFrom(sender: ContractAddress, recipient: ContractAddress, amount: u256) -> bool;
+        fn transferFrom(
+            sender: ContractAddress, recipient: ContractAddress, amount: u256
+        ) -> bool; // TODO which transferFrom
     }
 
     #[abi]
     trait IPair {
         fn get_reserves() -> (u256, u256, u64);
-
         fn mint(to: ContractAddress) -> u256;
-
         fn burn(to: ContractAddress) -> (u256, u256);
-
         fn swap(amount0Out: u256, amount1Out: u256, to: ContractAddress, data: Array::<felt252>);
     }
 
     #[abi]
     trait IFactory {
         fn get_pair(token0: ContractAddress, token1: ContractAddress) -> ContractAddress;
-
         fn create_pair(token0: ContractAddress, token1: ContractAddress) -> ContractAddress;
     }
 
@@ -53,7 +47,7 @@ mod RouterC1 {
     //
 
     struct Storage {
-        _factory: ContractAddress,       // @dev Factory contract address
+        _factory: ContractAddress, // @dev Factory contract address   
     }
 
     //
@@ -66,7 +60,7 @@ mod RouterC1 {
     fn initializer(factory: ContractAddress, proxy_admin: ContractAddress) {
         assert(!factory.is_zero(), 'can not be zero');
         _factory::write(factory);
-        // Proxy.initializer(proxy_admin);  //TODO proxy integration
+    // Proxy.initializer(proxy_admin);  //TODO proxy integration
     }
 
     //
@@ -86,7 +80,9 @@ mod RouterC1 {
     // @return token0 First token
     // @return token1 Second token
     #[view]
-    fn sort_tokens(tokenA: ContractAddress, tokenB: ContractAddress) -> (ContractAddress, ContractAddress) {
+    fn sort_tokens(
+        tokenA: ContractAddress, tokenB: ContractAddress
+    ) -> (ContractAddress, ContractAddress) {
         _sort_tokens(tokenA, tokenB)
     }
 
@@ -169,16 +165,18 @@ mod RouterC1 {
         amountBMin: u256,
         to: ContractAddress,
         deadline: u64,
-    ) -> (u256, u256, u256)  {
+    ) -> (u256, u256, u256) {
         _ensure_deadline(deadline);
-        let (amountA, amountB) = _add_liquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
+        let (amountA, amountB) = _add_liquidity(
+            tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin
+        );
         let pair = _pair_for(tokenA, tokenB);
         let sender = get_caller_address();
-        let tokenADispatcher = IERC20Dispatcher {contract_address: tokenA};
-        tokenADispatcher.transferFrom(sender, pair, amountA);
-        let tokenBDispatcher = IERC20Dispatcher {contract_address: tokenB};
+        let tokenADispatcher = IERC20Dispatcher { contract_address: tokenA };
+        tokenADispatcher.transferFrom(sender, pair, amountA); // TODO which transferFrom
+        let tokenBDispatcher = IERC20Dispatcher { contract_address: tokenB };
         tokenBDispatcher.transferFrom(sender, pair, amountB);
-        let pairDispatcher = IPairDispatcher {contract_address: pair};
+        let pairDispatcher = IPairDispatcher { contract_address: pair };
         let liquidity = pairDispatcher.mint(to);
         (amountA, amountB, liquidity)
     }
@@ -208,13 +206,13 @@ mod RouterC1 {
         _ensure_deadline(deadline);
         let pair = _pair_for(tokenA, tokenB);
         let sender = get_caller_address();
-        let pairERC20Dispatcher = IERC20Dispatcher {contract_address: pair};
+        let pairERC20Dispatcher = IERC20Dispatcher { contract_address: pair };
         pairERC20Dispatcher.transferFrom(sender, pair, liquidity);
-        let pairDispatcher = IPairDispatcher {contract_address: pair};
+        let pairDispatcher = IPairDispatcher { contract_address: pair };
         let (amount0, amount1) = pairDispatcher.burn(to);
         let (token0, _) = _sort_tokens(tokenA, tokenB);
-        let mut amountA = u256 { low: 0_u128, high: 0_u128 };
-        let mut amountB = u256 { low: 0_u128, high: 0_u128 };
+        let mut amountA = 0.into();
+        let mut amountB = 0.into();
         if tokenA == token0 {
             amountA = amount0;
             amountB = amount1;
@@ -241,16 +239,20 @@ mod RouterC1 {
     // @return amounts The input token amount and all subsequent output token amounts
     #[external]
     fn swap_exact_tokens_for_tokens(
-        amountIn: u256, amountOutMin: u256, path: Array::<ContractAddress>, to: ContractAddress, deadline: u64
+        amountIn: u256,
+        amountOutMin: u256,
+        path: Array::<ContractAddress>,
+        to: ContractAddress,
+        deadline: u64
     ) -> Array::<u256> {
         _ensure_deadline(deadline);
         let mut amounts = _get_amounts_out(amountIn, path.span());
-        assert(*amounts.at(amounts.len() - 1_u32) >= amountOutMin, 'insufficient output amount');
-        let pair = _pair_for(*path.at(0_u32), *path.at(1_u32));
+        assert(*amounts[amounts.len() - 1] >= amountOutMin, 'insufficient output amount');
+        let pair = _pair_for(*path[0], *path[1]);
         let sender = get_caller_address();
-        let pairERC20Dispatcher = IERC20Dispatcher {contract_address: *path.at(0_u32)};
-        pairERC20Dispatcher.transferFrom(sender, pair, *amounts.at(0_u32));
-        _swap(0_u32, path.len(), ref amounts, path.span(), to);
+        let pairERC20Dispatcher = IERC20Dispatcher { contract_address: *path[0] };
+        pairERC20Dispatcher.transferFrom(sender, pair, *amounts[0]);
+        _swap(0, path.len(), ref amounts, path.span(), to);
         amounts
     }
 
@@ -266,16 +268,20 @@ mod RouterC1 {
     // @return amounts The input token amount and all subsequent output token amounts
     #[external]
     fn swap_tokens_for_exact_tokens(
-        amountOut: u256, amountInMax: u256, path: Array::<ContractAddress>, to: ContractAddress, deadline: u64
+        amountOut: u256,
+        amountInMax: u256,
+        path: Array::<ContractAddress>,
+        to: ContractAddress,
+        deadline: u64
     ) -> Array::<u256> {
         _ensure_deadline(deadline);
         let mut amounts = _get_amounts_in(amountOut, path.span());
-        assert(*amounts.at(0_u32) <= amountInMax, 'excessive input amount');
-        let pair = _pair_for(*path.at(0_u32), *path.at(1_u32));
+        assert(*amounts[0] <= amountInMax, 'excessive input amount');
+        let pair = _pair_for(*path[0], *path[1]);
         let sender = get_caller_address();
-        let pairERC20Dispatcher = IERC20Dispatcher {contract_address: *path.at(0_u32)};
-        pairERC20Dispatcher.transferFrom(sender, pair, *amounts.at(0_u32));
-        _swap(0_u32, path.len(), ref amounts, path.span(), to);
+        let pairERC20Dispatcher = IERC20Dispatcher { contract_address: *path[0] };
+        pairERC20Dispatcher.transferFrom(sender, pair, *amounts[0]);
+        _swap(0, path.len(), ref amounts, path.span(), to);
         amounts
     }
 
@@ -283,9 +289,7 @@ mod RouterC1 {
     // Internals
     //
 
-    fn _ensure_deadline(
-        deadline: u64
-    ) {
+    fn _ensure_deadline(deadline: u64) {
         let block_timestamp = get_block_timestamp();
         assert(deadline >= block_timestamp, 'expired');
     }
@@ -299,7 +303,7 @@ mod RouterC1 {
         amountBMin: u256,
     ) -> (u256, u256) {
         let factory = _factory::read();
-        let factoryDispatcher = IFactoryDispatcher {contract_address: factory};
+        let factoryDispatcher = IFactoryDispatcher { contract_address: factory };
         let pair = factoryDispatcher.get_pair(tokenA, tokenB);
 
         if (pair == contract_address_const::<0>()) {
@@ -308,7 +312,7 @@ mod RouterC1 {
 
         let (reserveA, reserveB) = _get_reserves(tokenA, tokenB);
 
-        if (reserveA == u256 { low: 0_u128, high: 0_u128 } & reserveB == u256 { low: 0_u128, high: 0_u128 }) {
+        if (reserveA == 0.into() & reserveB == 0.into()) {
             return (amountADesired, amountBDesired);
         } else {
             let amountBOptimal = _quote(amountADesired, reserveA, reserveB);
@@ -324,36 +328,48 @@ mod RouterC1 {
         }
     }
 
-    fn _swap(current_index: u32, amounts_len: u32, ref amounts: Array::<u256>, path: Span::<ContractAddress>, _to: ContractAddress
+    fn _swap(
+        current_index: u32,
+        amounts_len: u32,
+        ref amounts: Array::<u256>,
+        path: Span::<ContractAddress>,
+        _to: ContractAddress
     ) {
         let factory = _factory::read();
-        if (current_index == amounts_len - 1_u32) {
+        if (current_index == amounts_len - 1) {
             return ();
         }
-        let (token0, _) = _sort_tokens(*path.at(current_index), *path.at(current_index + 1_u32));
-        let mut amount0Out = u256 { low: 0_u128, high: 0_u128 };
-        let mut amount1Out = u256 { low: 0_u128, high: 0_u128 };
-        if (*path.at(current_index) == token0) {
-            amount1Out = *amounts.at(current_index + 1_u32);
+        let (token0, _) = _sort_tokens(*path[current_index], *path[current_index + 1]);
+        let mut amount0Out = 0.into();
+        let mut amount1Out = 0.into();
+        if (*path[current_index] == token0) {
+            amount1Out = *amounts[current_index + 1];
         } else {
-            amount0Out = *amounts.at(current_index + 1_u32);
+            amount0Out = *amounts[current_index + 1];
         }
         let mut to: ContractAddress = _to;
-        if (current_index < (amounts_len - 2_u32)) {
-            to = _pair_for(*path.at(current_index + 1_u32), *path.at(current_index + 2_u32));
-        }
-        let pair = _pair_for(*path.at(current_index), *path.at(current_index + 1_u32));
+        if (current_index < (amounts_len
+            - 2)) {
+                to = _pair_for(*path[current_index + 1], *path[current_index + 2]);
+            }
+        let pair = _pair_for(*path[current_index], *path[current_index + 1]);
         let data = ArrayTrait::<felt252>::new();
-        let pairDispatcher = IPairDispatcher {contract_address: pair};
+        let pairDispatcher = IPairDispatcher { contract_address: pair };
         pairDispatcher.swap(amount0Out, amount1Out, to, data);
-        // return _swap(current_index + 1_u32, amounts_len, ref amounts, path, _to);   // TODO solve compilation  
+    // return _swap(current_index + 1, amounts_len, ref amounts, path, _to);   // TODO solve compilation  
     }
 
-    fn _sort_tokens(tokenA: ContractAddress, tokenB: ContractAddress) -> (ContractAddress, ContractAddress) {
+    fn _sort_tokens(
+        tokenA: ContractAddress, tokenB: ContractAddress
+    ) -> (ContractAddress, ContractAddress) {
         assert(tokenA != tokenB, 'must not be identical');
         let mut token0: ContractAddress = contract_address_const::<0>();
         let mut token1: ContractAddress = contract_address_const::<0>();
-        if u256_from_felt252(contract_address_to_felt252(tokenA)) < u256_from_felt252(contract_address_to_felt252(tokenB)) { // TODO token comparison directly
+        if u256_from_felt252(
+            contract_address_to_felt252(tokenA)
+        ) < u256_from_felt252(
+            contract_address_to_felt252(tokenB)
+        ) { // TODO token comparison directly
             token0 = tokenA;
             token1 = tokenB;
         } else {
@@ -368,7 +384,7 @@ mod RouterC1 {
     fn _pair_for(tokenA: ContractAddress, tokenB: ContractAddress) -> ContractAddress {
         let (token0, token1) = _sort_tokens(tokenA, tokenB);
         let factory = _factory::read();
-        let factoryDispatcher = IFactoryDispatcher {contract_address: factory};
+        let factoryDispatcher = IFactoryDispatcher { contract_address: factory };
         let pair = factoryDispatcher.get_pair(token0, token1);
         pair
     }
@@ -376,7 +392,7 @@ mod RouterC1 {
     fn _get_reserves(tokenA: ContractAddress, tokenB: ContractAddress) -> (u256, u256) {
         let (token0, _) = _sort_tokens(tokenA, tokenB);
         let pair = _pair_for(tokenA, tokenB);
-        let pairDispatcher = IPairDispatcher {contract_address: pair};
+        let pairDispatcher = IPairDispatcher { contract_address: pair };
         let (reserve0, reserve1, _) = pairDispatcher.get_reserves();
         if (tokenA == token0) {
             return (reserve0, reserve1);
@@ -390,103 +406,77 @@ mod RouterC1 {
     //
 
     fn _quote(amountA: u256, reserveA: u256, reserveB: u256) -> u256 {
-        assert(amountA > u256 { low: 0_u128, high: 0_u128 }, 'insufficient amount');
-        assert(reserveA > u256 { low: 0_u128, high: 0_u128 } & reserveB > u256 { low: 0_u128, high: 0_u128 }, 'insufficient liquidity');
+        assert(amountA > 0.into(), 'insufficient amount');
+        assert(reserveA > 0.into() & reserveB > 0.into(), 'insufficient liquidity');
 
-        let amountB = (amountA.low * reserveB.low) / reserveA.low;
-        u256 { low: amountB, high: 0_u128 }      // TODO official support for div u256
+        let amountB = (amountA * reserveB) / reserveA;
+        amountB
     }
 
     fn _get_amount_out(amountIn: u256, reserveIn: u256, reserveOut: u256) -> u256 {
-        assert(amountIn > u256 { low: 0_u128, high: 0_u128 }, 'insufficient input amount');
-        assert(reserveIn > u256 { low: 0_u128, high: 0_u128 } & reserveOut > u256 { low: 0_u128, high: 0_u128 }, 'insufficient liquidity');
+        assert(amountIn > 0.into(), 'insufficient input amount');
+        assert(reserveIn > 0.into() & reserveOut > 0.into(), 'insufficient liquidity');
 
-        let amountIn_with_fee = amountIn * u256 { low: 997_u128, high: 0_u128 };
+        let amountIn_with_fee = amountIn * 997.into();
         let numerator = amountIn_with_fee * reserveOut;
-        let denominator = (reserveIn * u256 { low: 1000_u128, high: 0_u128 }) + amountIn_with_fee;
+        let denominator = (reserveIn * 1000.into()) + amountIn_with_fee;
 
-        u256 { low: numerator.low / denominator.low, high: 0_u128 }      // TODO official support for div u256
-        // numerator / denominator
+        numerator / denominator
     }
 
     fn _get_amount_in(amountOut: u256, reserveIn: u256, reserveOut: u256) -> u256 {
-        assert(amountOut > u256 { low: 0_u128, high: 0_u128 }, 'insufficient output amount');
-        assert(reserveIn > u256 { low: 0_u128, high: 0_u128 } & reserveOut > u256 { low: 0_u128, high: 0_u128 }, 'insufficient liquidity');
+        assert(amountOut > 0.into(), 'insufficient output amount');
+        assert(reserveIn > 0.into() & reserveOut > 0.into(), 'insufficient liquidity');
 
-        let numerator = reserveIn * amountOut * u256 { low: 1000_u128, high: 0_u128 };
-        let denominator = (reserveOut - amountOut) * u256 { low: 997_u128, high: 0_u128 };
+        let numerator = reserveIn * amountOut * 1000.into();
+        let denominator = (reserveOut - amountOut) * 997.into();
 
-        u256 { low: numerator.low / denominator.low, high: 0_u128 }  + u256 { low: 1_u128, high: 0_u128 }     // TODO official support for div u256
-        // (numerator / denominator) + u256 { low: 1_u128, high: 0_u128 }
+        (numerator / denominator) + 1.into()
     }
 
     fn _get_amounts_out(amountIn: u256, path: Span::<ContractAddress>) -> Array::<u256> {
-        assert(path.len() >= 2_u32, 'invalid path');
+        assert(path.len() >= 2, 'invalid path');
         let mut amounts = ArrayTrait::<u256>::new();
         amounts.append(amountIn);
-        let mut current_index = 0_u32;
+        let mut current_index = 0;
         loop {
-            match gas::withdraw_gas_all(get_builtin_costs()) {
-                Option::Some(_) => {
-                },
-                Option::None(_) => {
-                    let mut err_data = array::array_new();
-                    array::array_append(ref err_data, 'Out of gas');
-                    panic(err_data)
-                },
-            }
-
-            if (current_index == path.len() - 1_u32) {
+            if (current_index == path.len() - 1) {
                 break true;
             }
-            let (reserveIn, reserveOut) = _get_reserves(*path.at(current_index), *path.at(current_index + 1_u32));
-            amounts.append(_get_amount_out(*amounts.at(current_index), reserveIn, reserveOut));
-            current_index += 1_u32;
+            let (reserveIn, reserveOut) = _get_reserves(
+                *path[current_index], *path[current_index + 1]
+            );
+            amounts.append(_get_amount_out(*amounts[current_index], reserveIn, reserveOut));
+            current_index += 1;
         };
         amounts
     }
 
     fn _get_amounts_in(amountOut: u256, path: Span::<ContractAddress>) -> Array::<u256> {
-        assert(path.len() >= 2_u32, 'invalid path');
+        assert(path.len() >= 2, 'invalid path');
         let mut amounts = ArrayTrait::<u256>::new();
         amounts.append(amountOut);
-        let mut current_index = path.len() - 1_u32;
+        let mut current_index = path.len() - 1;
         loop {
-            match gas::withdraw_gas_all(get_builtin_costs()) {
-                Option::Some(_) => {
-                },
-                Option::None(_) => {
-                    let mut err_data = array::array_new();
-                    array::array_append(ref err_data, 'Out of gas');
-                    panic(err_data)
-                },
-            }
-
-            if (current_index == 0_u32) {
+            if (current_index == 0) {
                 break true;
             }
-            let (reserveIn, reserveOut) = _get_reserves(*path.at(current_index - 1_u32), *path.at(current_index));
-            amounts.append(_get_amount_in(*amounts.at(path.len() - current_index), reserveIn, reserveOut));
-            current_index -= 1_u32;
+            let (reserveIn, reserveOut) = _get_reserves(
+                *path[current_index - 1], *path[current_index]
+            );
+            amounts.append(
+                _get_amount_in(*amounts[path.len() - current_index], reserveIn, reserveOut)
+            );
+            current_index -= 1;
         };
         let mut final_amounts = ArrayTrait::<u256>::new();
-        current_index = 0_u32;
-        loop {      // reversing array, TODO remove when set comes.
-            match gas::withdraw_gas_all(get_builtin_costs()) {
-                Option::Some(_) => {
-                },
-                Option::None(_) => {
-                    let mut err_data = array::array_new();
-                    array::array_append(ref err_data, 'Out of gas');
-                    panic(err_data)
-                },
-            }
-            
+        current_index = 0;
+        loop { // reversing array, TODO remove when set comes.
             if (current_index == amounts.len()) {
                 break true;
             }
-            final_amounts.append(*amounts.at(amounts.len() - 1_u32 - current_index));
-            current_index += 1_u32;
+            final_amounts.append(*amounts[amounts.len() - 1 - current_index]);
+            current_index += 1;
         };
         final_amounts
     }

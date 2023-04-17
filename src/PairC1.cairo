@@ -1,4 +1,3 @@
-
 // @title JediSwap Pair Cairo 1.0
 // @author Mesh Finance
 // @license MIT
@@ -7,42 +6,33 @@
 //      https://github.com/Uniswap/v2-core/blob/master/contracts/UniswapV2Pair.sol
 //      Also an ERC20 token
 
-
 #[contract]
 mod PairC1 {
-    use jediswap::utils::erc20::ERC20;
+    use JediSwap::utils::erc20::ERC20;
     use traits::Into;
-    use traits::TryInto;
     use option::OptionTrait;
     use array::ArrayTrait;
-    use array::SpanTrait;
     use zeroable::Zeroable;
     use starknet::ContractAddress;
     use starknet::ContractAddressZeroable;
-    use starknet::ClassHash;
-    use starknet::ClassHashZeroable;
     use starknet::get_caller_address;
     use starknet::get_contract_address;
     use starknet::get_block_timestamp;
     use starknet::contract_address_const;
-    use starknet::contract_address_to_felt252;
-    use starknet::class_hash::class_hash_to_felt252;
-    use integer::u256_from_felt252;
     use integer::u128_try_from_felt252;
     use integer::u128_sqrt; // TODO change all to native u256 sqrt when available
-    use starknet::syscalls::deploy_syscall;
-    
-    
+
+
     //
     // Interfaces
     //
     #[abi]
     trait IERC20 {
-        fn balanceOf(account: ContractAddress) -> u256;
-
+        fn balanceOf(account: ContractAddress) -> u256; // TODO which balanceOf
         fn transfer(recipient: ContractAddress, amount: u256) -> bool;
-
-        fn transferFrom(sender: ContractAddress, recipient: ContractAddress, amount: u256) -> bool;
+        fn transferFrom(
+            sender: ContractAddress, recipient: ContractAddress, amount: u256
+        ) -> bool; // TODO which transferFrom
     }
 
     #[abi]
@@ -52,7 +42,9 @@ mod PairC1 {
 
     #[abi]
     trait IJediSwapCallee {
-        fn jediswap_call(sender: ContractAddress, amount0Out: u256, amount1Out: u256, data: Array::<felt252>);
+        fn jediswap_call(
+            sender: ContractAddress, amount0Out: u256, amount1Out: u256, data: Array::<felt252>
+        );
     }
 
     //
@@ -60,16 +52,16 @@ mod PairC1 {
     //
 
     struct Storage {
-        _token0: ContractAddress,       // @dev token0 address
-        _token1: ContractAddress,       // @dev token1 address
-        _reserve0: u256,       // @dev reserve for token0
-        _reserve1: u256,       // @dev reserve for token1
-        _block_timestamp_last: u64,       // @dev block timestamp for last update
-        _price_0_cumulative_last: u256,       // @dev cumulative price for token0 on last update
-        _price_1_cumulative_last: u256,       // @dev cumulative price for token1 on last update
-        _klast: u256,       // @dev reserve0 * reserve1, as of immediately after the most recent liquidity event
-        _locked: bool,       // @dev Boolean to check reentrancy
-        _factory: ContractAddress,       // @dev Factory contract address
+        _token0: ContractAddress, // @dev token0 address
+        _token1: ContractAddress, // @dev token1 address
+        _reserve0: u256, // @dev reserve for token0
+        _reserve1: u256, // @dev reserve for token1
+        _block_timestamp_last: u64, // @dev block timestamp for last update
+        _price_0_cumulative_last: u256, // @dev cumulative price for token0 on last update
+        _price_1_cumulative_last: u256, // @dev cumulative price for token1 on last update
+        _klast: u256, // @dev reserve0 * reserve1, as of immediately after the most recent liquidity event
+        _locked: bool, // @dev Boolean to check reentrancy
+        _factory: ContractAddress, // @dev Factory contract address
     }
 
     // @notice An event emitted whenever mint() is called.
@@ -78,8 +70,7 @@ mod PairC1 {
 
     // @notice An event emitted whenever burn() is called.
     #[event]
-    fn Burn(sender: ContractAddress, amount0: u256, amount1: u256, to: ContractAddress) {
-    }
+    fn Burn(sender: ContractAddress, amount0: u256, amount1: u256, to: ContractAddress) {}
 
     // @notice An event emitted whenever swap() is called.
     #[event]
@@ -106,16 +97,15 @@ mod PairC1 {
     // @param token0 Address of token0
     // @param token1 Address of token1
     #[external]
-    fn initializer(token0: ContractAddress, token1: ContractAddress, proxy_admin: ContractAddress
-    ) {
+    fn initializer(token0: ContractAddress, token1: ContractAddress, proxy_admin: ContractAddress) {
         assert(!token0.is_zero() & !token1.is_zero(), 'must be non zero');
-        ERC20::initializer('JediSwap Pair', 'JEDI-P');   //TODO ERC20 integration
+        ERC20::initializer('JediSwap Pair', 'JEDI-P'); //TODO ERC20 integration
         _locked::write(false);
         _token0::write(token0);
         _token1::write(token1);
         let factory = get_caller_address();
         _factory::write(factory);
-        // Proxy.initializer(proxy_admin); //TODO proxy integration
+    // Proxy.initializer(proxy_admin); //TODO proxy integration
     }
 
     //
@@ -139,7 +129,7 @@ mod PairC1 {
     // @notice Total Supply of the token
     // @return totalSupply
     #[view]
-    fn totalSupply() -> u256 {
+    fn totalSupply() -> u256 { //TODO total_supply ?
         ERC20::total_supply()
     }
 
@@ -154,7 +144,7 @@ mod PairC1 {
     // @param account Account address whose balance is fetched
     // @return balance Balance of `account`
     #[view]
-    fn balanceOf(account: ContractAddress) -> u256 {
+    fn balanceOf(account: ContractAddress) -> u256 { //TODO balance_of ?
         ERC20::balance_of(account)
     }
 
@@ -236,7 +226,9 @@ mod PairC1 {
     // @param amount Amount of tokens to transfer
     // @return success 0 or 1
     #[external]
-    fn transferFrom(sender: ContractAddress, recipient: ContractAddress, amount: u256) -> bool {
+    fn transferFrom(
+        sender: ContractAddress, recipient: ContractAddress, amount: u256
+    ) -> bool { //TODO transfer_from ?
         ERC20::transfer_from(sender, recipient, amount);
         true
     }
@@ -256,7 +248,9 @@ mod PairC1 {
     // @param added_value The increased amount of tokens to be spent
     // @return success 0 or 1
     #[external]
-    fn increaseAllowance(spender: ContractAddress, added_value: u256) -> bool {
+    fn increaseAllowance(
+        spender: ContractAddress, added_value: u256
+    ) -> bool { //TODO increase_allowance ?
         ERC20::increase_allowance(spender, added_value);
         true
     }
@@ -266,7 +260,9 @@ mod PairC1 {
     // @param subtracted_value The decreased amount of tokens to be spent
     // @return success 0 or 1
     #[external]
-    fn decreaseAllowance(spender: ContractAddress, subtracted_value: u256) -> bool {
+    fn decreaseAllowance(
+        spender: ContractAddress, subtracted_value: u256
+    ) -> bool { //TODO decrease_allowance ?
         ERC20::decrease_allowance(spender, subtracted_value);
         true
     }
@@ -285,30 +281,30 @@ mod PairC1 {
         let (reserve0, reserve1, _) = _get_reserves();
         let self_address = get_contract_address();
         let token0 = _token0::read();
-        let token0Dispatcher = IERC20Dispatcher {contract_address: token0};
+        let token0Dispatcher = IERC20Dispatcher { contract_address: token0 };
         let balance0 = token0Dispatcher.balanceOf(self_address);
         let token1 = _token1::read();
-        let token1Dispatcher = IERC20Dispatcher {contract_address: token1};
+        let token1Dispatcher = IERC20Dispatcher { contract_address: token1 };
         let balance1 = token1Dispatcher.balanceOf(self_address);
         let amount0 = balance0 - reserve0;
         let amount1 = balance1 - reserve1;
         let fee_on = _mint_protocol_fee(reserve0, reserve1);
         let _total_supply = totalSupply();
-        let mut liquidity = u256 { low: 0_u128, high: 0_u128 };
-        if (_total_supply == u256 { low: 0_u128, high: 0_u128 }) {
-            liquidity = u256 {low: u128_sqrt(((amount0 * amount1) - u256 { low: 1000_u128, high: 0_u128 }).low), high: 0_u128};
-            ERC20::_mint(contract_address_const::<1>(), Uint256(u256 { low: 1000_u128, high: 0_u128 }, 0));
+        let mut liquidity = 0.into();
+        if (_total_supply == 0.into()) {
+            liquidity = u256 { low: u128_sqrt(((amount0 * amount1) - 1000.into()).low), high: 0 };
+            ERC20::_mint(contract_address_const::<1>(), 1000.into());
         } else {
-            let liquidity0 = u256 { low: (amount0 * _total_supply).low / reserve0.low, high: 0_u128 }; // (amount0 * _total_supply) / reserve0; TODO official support for div u256
-            let liquidity1 = u256 { low: (amount1 * _total_supply).low / reserve1.low, high: 0_u128 }; // (amount1 * _total_supply) / reserve1; TODO official support for div u256
+            let liquidity0 = (amount0 * _total_supply) / reserve0;
+            let liquidity1 = (amount1 * _total_supply) / reserve1;
             if liquidity0 < liquidity1 {
                 liquidity = liquidity0;
             } else {
                 liquidity = liquidity1;
             }
         }
-        
-        assert(liquidity > u256 { low: 0_u128, high: 0_u128 }, 'insufficient liquidity minted');
+
+        assert(liquidity > 0.into(), 'insufficient liquidity minted');
 
         ERC20::_mint(to, liquidity);
 
@@ -319,7 +315,9 @@ mod PairC1 {
             _klast::write(klast);
         }
 
-        Mint(get_caller_address(), amount0, amount1);   // TODO?? sender address instead of caller address
+        Mint(
+            get_caller_address(), amount0, amount1
+        ); // TODO?? sender address instead of caller address
 
         _unlock();
         liquidity
@@ -336,18 +334,18 @@ mod PairC1 {
         let (reserve0, reserve1, _) = _get_reserves();
         let self_address = get_contract_address();
         let token0 = _token0::read();
-        let token0Dispatcher = IERC20Dispatcher {contract_address: token0};
+        let token0Dispatcher = IERC20Dispatcher { contract_address: token0 };
         let mut balance0 = token0Dispatcher.balanceOf(self_address);
         let token1 = _token1::read();
-        let token1Dispatcher = IERC20Dispatcher {contract_address: token1};
+        let token1Dispatcher = IERC20Dispatcher { contract_address: token1 };
         let mut balance1 = token1Dispatcher.balanceOf(self_address);
         let liquidity = balanceOf(self_address);
         let fee_on = _mint_protocol_fee(reserve0, reserve1);
         let _total_supply = totalSupply();
 
-        let amount0 = u256 { low: (liquidity * balance0).low / _total_supply.low, high: 0_u128 };  // TODO official support for div u256
-        let amount1 = u256 { low: (liquidity * balance1).low / _total_supply.low, high: 0_u128 };   // TODO official support for div u256
-        assert(amount0 > u256 { low: 0_u128, high: 0_u128 } & amount1 > u256 { low: 0_u128, high: 0_u128 }, 'insufficient liquidity burned');
+        let amount0 = (liquidity * balance0) / _total_supply;
+        let amount1 = (liquidity * balance1) / _total_supply;
+        assert(amount0 > 0.into() & amount1 > 0.into(), 'insufficient liquidity burned');
 
         ERC20::_burn(self_address, liquidity);
 
@@ -378,7 +376,7 @@ mod PairC1 {
     #[external]
     fn swap(amount0Out: u256, amount1Out: u256, to: ContractAddress, data: Array::<felt252>) {
         _check_and_lock();
-        assert(amount0Out > u256 { low: 0_u128, high: 0_u128 } | amount1Out > u256 { low: 0_u128, high: 0_u128 }, 'insufficient output amount');
+        assert(amount0Out > 0.into() | amount1Out > 0.into(), 'insufficient output amount');
 
         let (reserve0, reserve1, _) = _get_reserves();
         assert(amount0Out < reserve0 & amount1Out < reserve1, 'insufficient liquidity');
@@ -387,44 +385,49 @@ mod PairC1 {
         let token1 = _token1::read();
         assert(to != token0 & to != token1, 'invalid to');
 
-        let token0Dispatcher = IERC20Dispatcher {contract_address: token0};
-        let token1Dispatcher = IERC20Dispatcher {contract_address: token1};
+        let token0Dispatcher = IERC20Dispatcher { contract_address: token0 };
+        let token1Dispatcher = IERC20Dispatcher { contract_address: token1 };
 
-        if (amount0Out > u256 { low: 0_u128, high: 0_u128 }) {
+        if (amount0Out > 0.into()) {
             token0Dispatcher.transfer(to, amount0Out);
         }
 
-        if (amount1Out > u256 { low: 0_u128, high: 0_u128 }) {
+        if (amount1Out > 0.into()) {
             token1Dispatcher.transfer(to, amount1Out);
         }
 
-        if (data.len() > 0_u32) {
-            let JediSwapCalleeDispatcher = IJediSwapCalleeDispatcher {contract_address: to};
-            JediSwapCalleeDispatcher.jediswap_call(get_caller_address(), amount0Out, amount1Out, data);
+        if (data.len() > 0) {
+            let JediSwapCalleeDispatcher = IJediSwapCalleeDispatcher { contract_address: to };
+            JediSwapCalleeDispatcher.jediswap_call(
+                get_caller_address(), amount0Out, amount1Out, data
+            );
         }
 
         let self_address = get_contract_address();
         let balance0 = token0Dispatcher.balanceOf(self_address);
         let balance1 = token1Dispatcher.balanceOf(self_address);
 
-        let mut amount0In = u256 { low: 0_u128, high: 0_u128 };
+        let mut amount0In = 0.into();
 
         if (balance0 > (reserve0 - amount0Out)) {
             amount0In = balance0 - (reserve0 - amount0Out);
         }
 
-        let mut amount1In = u256 { low: 0_u128, high: 0_u128 };
+        let mut amount1In = 0.into();
 
         if (balance1 > (reserve1 - amount1Out)) {
             amount1In = balance1 - (reserve1 - amount1Out);
         }
 
-        assert(amount0In > u256 { low: 0_u128, high: 0_u128 } | amount1In > u256 { low: 0_u128, high: 0_u128 }, 'insufficient input amount');
+        assert(amount0In > 0.into() | amount1In > 0.into(), 'insufficient input amount');
 
-        let balance0Adjusted = (balance0 * u256 { low: 1000_u128, high: 0_u128 }) - (amount0In * u256 { low: 3_u128, high: 0_u128 });
-        let balance1Adjusted = (balance1 * u256 { low: 1000_u128, high: 0_u128 }) - (amount1In * u256 { low: 3_u128, high: 0_u128 });
+        let balance0Adjusted = (balance0 * 1000.into()) - (amount0In * 3.into());
+        let balance1Adjusted = (balance1 * 1000.into()) - (amount1In * 3.into());
 
-        assert(balance0Adjusted * balance1Adjusted > reserve0 * reserve1 * u256 { low: 1000000_u128, high: 0_u128 } , 'invariant K');
+        assert(
+            balance0Adjusted * balance1Adjusted > reserve0 * reserve1 * 1000000.into(),
+            'invariant K'
+        );
 
         _update(balance0, balance1, reserve0, reserve1);
 
@@ -442,10 +445,10 @@ mod PairC1 {
 
         let self_address = get_contract_address();
         let token0 = _token0::read();
-        let token0Dispatcher = IERC20Dispatcher {contract_address: token0};
+        let token0Dispatcher = IERC20Dispatcher { contract_address: token0 };
         let balance0 = token0Dispatcher.balanceOf(self_address);
         let token1 = _token1::read();
-        let token1Dispatcher = IERC20Dispatcher {contract_address: token1};
+        let token1Dispatcher = IERC20Dispatcher { contract_address: token1 };
         let balance1 = token1Dispatcher.balanceOf(self_address);
 
         token0Dispatcher.transfer(to, balance0 - reserve0);
@@ -461,10 +464,10 @@ mod PairC1 {
 
         let self_address = get_contract_address();
         let token0 = _token0::read();
-        let token0Dispatcher = IERC20Dispatcher {contract_address: token0};
+        let token0Dispatcher = IERC20Dispatcher { contract_address: token0 };
         let balance0 = token0Dispatcher.balanceOf(self_address);
         let token1 = _token1::read();
-        let token1Dispatcher = IERC20Dispatcher {contract_address: token1};
+        let token1Dispatcher = IERC20Dispatcher { contract_address: token1 };
         let balance1 = token1Dispatcher.balanceOf(self_address);
 
         let (reserve0, reserve1, _) = _get_reserves();
@@ -495,28 +498,28 @@ mod PairC1 {
     // @dev If fee is on, mint liquidity equivalent to 1/6th of the growth in sqrt(k)
     fn _mint_protocol_fee(reserve0: u256, reserve1: u256) -> bool {
         let factory = _factory::read();
-        let factoryDispatcher = IFactoryDispatcher {contract_address: factory};
+        let factoryDispatcher = IFactoryDispatcher { contract_address: factory };
         let fee_to = factoryDispatcher.get_fee_to();
         let fee_on = (fee_to != contract_address_const::<0>());
 
         let klast = _klast::read();
 
         if (fee_on) {
-            if (klast != u256 { low: 0_u128, high: 0_u128 }) {
-                let rootk = u256 {low: u128_sqrt((reserve0 * reserve1).low), high: 0_u128};
-                let rootklast = u256 {low: u128_sqrt(klast.low), high: 0_u128};
+            if (klast != 0.into()) {
+                let rootk = 0.into();
+                let rootklast = 0.into();
                 if (rootk > rootklast) {
                     let numerator = totalSupply() * (rootk - rootklast);
-                    let denominator = (rootk * u256 { low: 5_u128, high: 0_u128 }) + rootklast;
-                    let liquidity = u256 { low: numerator.low / denominator.low, high: 0_u128 };      // TODO official support for div u256
-                    if (liquidity > u256 { low: 0_u128, high: 0_u128 }) {
+                    let denominator = (rootk * 5.into()) + rootklast;
+                    let liquidity = numerator / denominator;
+                    if (liquidity > 0.into()) {
                         ERC20::_mint(fee_to, liquidity);
                     }
                 }
             }
         } else {
-            if (klast != u256 { low: 0_u128, high: 0_u128 }) {
-                _klast::write(u256 { low: 0_u128, high: 0_u128 });
+            if (klast != 0.into()) {
+                _klast::write(0.into());
             }
         }
         fee_on
@@ -528,20 +531,24 @@ mod PairC1 {
 
     // @dev Update reserves and, on the first call per block, price accumulators
     fn _update(balance0: u256, balance1: u256, reserve0: u256, reserve1: u256) {
-        assert(balance0.high == 0_u128 & balance1.high == 0_u128, 'overflow');
+        assert(balance0.high == 0 & balance1.high == 0, 'overflow');
         let block_timestamp = get_block_timestamp();
         let block_timestamp_last = _block_timestamp_last::read();
         let time_elapsed = block_timestamp - block_timestamp_last;
         let (reserve0, reserve1, _) = _get_reserves();
-        if (time_elapsed > 0_u64 & reserve0 != u256 { low: 0_u128, high: 0_u128 } & reserve1 != u256 { low: 0_u128, high: 0_u128 }) {
+        if (time_elapsed > 0 & reserve0 != 0.into() & reserve1 != 0.into()) {
             let mut price_0_cumulative_last = _price_0_cumulative_last::read();
             let mut price_1_cumulative_last = _price_1_cumulative_last::read();
-            price_0_cumulative_last += u256 { low: reserve1.low / reserve0.low, high: 0_u128 } * u256 { low: u128_try_from_felt252(time_elapsed.into()).unwrap(), high: 0_u128 };    // TODO official support for div u256
-            price_1_cumulative_last += u256 { low: reserve0.low / reserve1.low, high: 0_u128 } * u256 { low: u128_try_from_felt252(time_elapsed.into()).unwrap(), high: 0_u128 };    // TODO official support for div u256
+            price_0_cumulative_last += (reserve1 / reserve0) * u256 {
+                low: u128_try_from_felt252(time_elapsed.into()).unwrap(), high: 0
+            }; // TODO official support for casting to u256
+            price_1_cumulative_last += (reserve0 / reserve1) * u256 {
+                low: u128_try_from_felt252(time_elapsed.into()).unwrap(), high: 0
+            }; // TODO official support for casting to u256
             _price_0_cumulative_last::write(price_0_cumulative_last);
             _price_1_cumulative_last::write(price_1_cumulative_last);
         }
-        
+
         _reserve0::write(balance0);
         _reserve1::write(balance1);
         _block_timestamp_last::write(block_timestamp);

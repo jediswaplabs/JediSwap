@@ -1,5 +1,7 @@
 [package]
 name = "JediSwap"
 version = "0.1.0"
- 
+
+[[target.starknet-contract]]
+
 [dependencies]

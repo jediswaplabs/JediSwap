@@ -3,6 +3,8 @@ from starknet_py.contract import Contract
 from pathlib import Path
 import time
 import json
+from starknet_py.hash.casm_class_hash import compute_casm_class_hash
+from starknet_py.net.schemas.gateway import CasmClassSchema
 
 def str_to_felt(text):
     b_text = bytes(text, 'UTF-8')
@@ -35,16 +37,24 @@ async def print_transaction_execution_details(current_client, tx_hash):
     print(f"overall fee calculated: {overall_fee}")
 
 
-async def deploy_or_get_token(current_client, token_address, token_decimals, deployer, max_fee):
+async def deploy_or_get_token(token_address, declared_token_class_hash, deployer, max_fee):
     if token_address is None:
         print("Deploying Token")
-        deployment_result = await Contract.deploy(client=deployer, compilation_source=Path("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo").read_text(), constructor_args=[str_to_felt("TestTokenJedi"), str_to_felt("TTJ"), token_decimals, (10 ** 9) * (10 ** token_decimals), deployer.address, deployer.address])
+        if declared_token_class_hash is None:
+            casm_class = CasmClassSchema().loads(Path("build/ERC20C1.casm").read_text())
+            casm_class_hash = compute_casm_class_hash(casm_class)
+            declare_transaction = await deployer.sign_declare_v2_transaction(compiled_contract=Path("target/release/JediSwap_ERC20.sierra.json").read_text(), compiled_class_hash=casm_class_hash, max_fee=int(1e16))
+            resp = await deployer.client.declare(transaction=declare_transaction)
+            await deployer.client.wait_for_tx(resp.transaction_hash)
+            declared_token_class_hash = resp.class_hash
+            print(f"Declared token class hash: {declared_token_class_hash}, {hex(declared_token_class_hash)}")
+        deployment_result = await Contract.deploy_contract(account=deployer, class_hash=declared_token_class_hash, abi=json.loads(Path("build/ERC20_abi.json").read_text()), constructor_args=[str_to_felt("TestTokenJedi"), str_to_felt("TTJ"), (10 ** 9) * (10 ** 18), deployer.address], max_fee=int(1e16))
         await deployment_result.wait_for_acceptance()
         token = deployment_result.deployed_contract
-    else:
-        token = await Contract.from_address(token_address, current_client)
+        token_address = token.address
+    token = Contract(address=token_address, abi=json.loads(Path("build/ERC20_abi.json").read_text()), provider=deployer)
     print(f"Token deployed: {token.address}, {hex(token.address)}")
-    return token
+    return token, declared_token_class_hash
 
 async def create_or_get_pair(current_client, factory, token0, token1, deployer, max_fee):
     result = await factory.functions["get_pair"].call(token0.address, token1.address)
@@ -54,14 +64,14 @@ async def create_or_get_pair(current_client, factory, token0, token1, deployer, 
         return pair
     ## Create pair
     print("Creating Pair")
-    factory_with_account = Contract(address=factory.address, abi=json.loads(Path("build/Factory_abi.json").read_text()), client=deployer)
+    factory_with_account = Contract(address=factory.address, abi=json.loads(Path("build/Factory_abi.json").read_text()), provider=deployer)
     estimated_fee = await factory_with_account.functions["create_pair"].prepare(token0.address, token1.address).estimate_fee()
     print(f"Estimated fee: {estimated_fee}")
     invocation = await factory_with_account.functions["create_pair"].invoke(token0.address, token1.address, max_fee=max_fee)
     await invocation.wait_for_acceptance()
     # await print_transaction_execution_details(current_client, invocation.hash)
     result = await factory.functions["get_pair"].call(token0.address, token1.address)
-    pair = await Contract.from_address(result.pair, current_client)
+    pair = Contract(address=result.pair, abi=json.loads(Path("build/Pair_abi.json").read_text()), provider=deployer)
     print(f"Pair deployed: {result.pair}, {pair.address}, {hex(pair.address)}")
     return pair
 
@@ -73,24 +83,24 @@ async def add_liquidity_to_pair(current_client, factory, router, token0, token1,
     amount1 = int(amount1 * (10 ** result.decimals))
 
     # Approve
-    token0_with_account = await Contract.from_address(token0.address, deployer)
+    token0_with_account = Contract(address=token0.address, abi=json.loads(Path("build/ERC20_abi.json").read_text()), provider=deployer)
     invocation = await token0_with_account.functions["approve"].invoke(router.address, amount0, max_fee=max_fee)
     await invocation.wait_for_acceptance()
-    token1_with_account = await Contract.from_address(token1.address, deployer)
+    token1_with_account = Contract(address=token1.address, abi=json.loads(Path("build/ERC20_abi.json").read_text()), provider=deployer)
     invocation = await token1_with_account.functions["approve"].invoke(router.address, amount1, max_fee=max_fee)
     await invocation.wait_for_acceptance()
 
     ## Add liquidity
     print("Adding Liquidity")
     deadline = int(time.time()) + 3000
-    router_with_account = Contract(address=router.address, abi=json.loads(Path("build/Router_abi.json").read_text()), client=deployer)
+    router_with_account = Contract(address=router.address, abi=json.loads(Path("build/Router_abi.json").read_text()), provider=deployer)
     estimated_fee = await router_with_account.functions["add_liquidity"].prepare(token0.address, token1.address, amount0, amount1, 0, 0, deployer.address, deadline).estimate_fee()
     print(f"Estimated fee: {estimated_fee}")
     invocation = await router_with_account.functions["add_liquidity"].invoke(token0.address, token1.address, amount0, amount1, 0, 0, deployer.address, deadline, max_fee=max_fee)
     await invocation.wait_for_acceptance()
     # await print_transaction_execution_details(current_client, invocation.hash)
     result = await factory.functions["get_pair"].call(token0.address, token1.address)
-    pair = Contract(address=result.pair, abi=json.loads(Path("build/Pair_abi.json").read_text()), client=current_client)
+    pair = Contract(address=result.pair, abi=json.loads(Path("build/Pair_abi.json").read_text()), provider=current_client)
     result = await pair.functions["get_reserves"].call()
     print(result._asdict())
 
@@ -98,6 +108,8 @@ async def swap_token0_to_token1(current_client, factory, router, token0, token1,
 
     result = await token0.functions["decimals"].call()
     amount0 = int(amount0 * (10 ** result.decimals))
+    print(amount0)
+
 
     result = await token0.functions["balanceOf"].call(deployer.address)
     print(f"Balance token0: {result.balance}")
@@ -105,21 +117,31 @@ async def swap_token0_to_token1(current_client, factory, router, token0, token1,
     print(f"Balance token1: {result.balance}")
 
     # Approve
-    token0_with_account = await Contract.from_address(token0.address, deployer)
+    token0_with_account = Contract(address=token0.address, abi=json.loads(Path("build/ERC20_abi.json").read_text()), provider=deployer)
     invocation = await token0_with_account.functions["approve"].invoke(router.address, amount0, max_fee=max_fee)
     await invocation.wait_for_acceptance()
 
     ## Swap
     print("Swapping")
     deadline = int(time.time()) + 3000
-    router_with_account = Contract(address=router.address, abi=json.loads(Path("build/Router_abi.json").read_text()), client=deployer)
+    router_with_account = Contract(address=router.address, abi=json.loads(Path("build/Router_abi.json").read_text()), provider=deployer)
+    result = await factory.functions["get_pair"].call(token0.address, token1.address)
+    pair = Contract(address=result.pair, abi=json.loads(Path("build/Pair_abi.json").read_text()), provider=current_client)
+    result = await pair.functions["get_reserves"].call()
+    print(result._asdict())
+    reserve0 = result.reserve0
+    reserve1 = result.reserve1
+    for i in range(0, 10):
+        required_amount = int(amount0 / (10**i))
+        result = await router_with_account.functions["quote"].call(required_amount, reserve0, reserve1)
+        print(required_amount, result.amountB, result.amountB/required_amount)
+    result = await router_with_account.functions["get_amounts_out"].call(amount0, [token0.address, token1.address])
+    print(result._asdict())
     estimated_fee = await router_with_account.functions["swap_exact_tokens_for_tokens"].prepare(amount0, 0, [token0.address, token1.address], deployer.address, deadline).estimate_fee()
     print(f"Estimated fee: {estimated_fee}")
     invocation = await router_with_account.functions["swap_exact_tokens_for_tokens"].invoke(amount0, 0, [token0.address, token1.address], deployer.address, deadline, max_fee=max_fee)
     await invocation.wait_for_acceptance()
     # await print_transaction_execution_details(current_client, invocation.hash)
-    result = await factory.functions["get_pair"].call(token0.address, token1.address)
-    pair = Contract(address=result.pair, abi=json.loads(Path("build/Pair_abi.json").read_text()), client=current_client)
     result = await pair.functions["get_reserves"].call()
     print(result._asdict())
 
