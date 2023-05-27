@@ -5,7 +5,7 @@
 //       https://github.com/Uniswap/v2-periphery/blob/master/contracts/UniswapV2Router02.sol
 
 #[contract]
-mod RouterC1 {
+mod RouterC1Intermediate {
     use traits::Into;
     use array::ArrayTrait;
     use array::SpanTrait;
@@ -46,7 +46,8 @@ mod RouterC1 {
     //
 
     struct Storage {
-        _factory: ContractAddress, // @dev Factory contract address        
+        _factory: ContractAddress, // @dev Factory contract address
+        Proxy_admin: ContractAddress, // @dev Proxy admin contract address, to be used to finalize Cairo 1 upgrade.
     }
 
     //
@@ -283,6 +284,18 @@ mod RouterC1 {
         amounts
     }
 
+    // @notice This is an intermediate state to finalize upgrade to non-upgradable Factory Cairo 1.0
+    // @dev Only Proxy_admin can call
+    // @param new_implementation_class New implementation hash
+    #[external]
+    fn replace_implementation_class(new_implementation_class: ClassHash) {
+        let sender = get_caller_address();
+        let proxy_admin = Proxy_admin::read();
+        assert(sender == proxy_admin, 'must be admin');
+        assert(!new_implementation_class.is_zero(), 'must be non zero');
+        replace_class_syscall(new_implementation_class);
+    }
+
     //
     // Internals
     //
@@ -438,6 +451,14 @@ mod RouterC1 {
         amounts.append(amountIn);
         let mut current_index = 0;
         loop {
+            match gas::withdraw_gas_all(get_builtin_costs()) {
+                Option::Some(_) => {},
+                Option::None(_) => {
+                    let mut err_data = array::array_new();
+                    array::array_append(ref err_data, 'Out of gas');
+                    panic(err_data)
+                },
+            }
             if (current_index == path.len() - 1) {
                 break true;
             }
@@ -456,6 +477,14 @@ mod RouterC1 {
         amounts.append(amountOut);
         let mut current_index = path.len() - 1;
         loop {
+            match gas::withdraw_gas_all(get_builtin_costs()) {
+                Option::Some(_) => {},
+                Option::None(_) => {
+                    let mut err_data = array::array_new();
+                    array::array_append(ref err_data, 'Out of gas');
+                    panic(err_data)
+                },
+            }
             if (current_index == 0) {
                 break true;
             }
@@ -470,6 +499,14 @@ mod RouterC1 {
         let mut final_amounts = ArrayTrait::<u256>::new();
         current_index = 0;
         loop { // reversing array, TODO remove when set comes.
+            match gas::withdraw_gas_all(get_builtin_costs()) {
+                Option::Some(_) => {},
+                Option::None(_) => {
+                    let mut err_data = array::array_new();
+                    array::array_append(ref err_data, 'Out of gas');
+                    panic(err_data)
+                },
+            }
             if (current_index == amounts.len()) {
                 break true;
             }

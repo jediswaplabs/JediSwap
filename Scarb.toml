@@ -1,7 +1,10 @@
 [package]
 name = "JediSwap"
-version = "0.1.0"
+version = "1.0.0"
 
 [[target.starknet-contract]]
+sierra = true
+casm = true
+casm-add-pythonic-hints = true
 
 [dependencies]

@@ -1,14 +1,9 @@
 [project]
-protostar-version = "0.9.2"
+protostar-version = "0.9.4"
 lib-path = "lib"
-cairo-path = ["./lib/cairo_contracts/src"]
 
 [contracts]
-FactoryProxy = ["contracts/FactoryProxy.cairo"]
-Factory = ["contracts/Factory.cairo"]
-RouterProxy = ["contracts/RouterProxy.cairo"]
-Router = ["contracts/Router.cairo"]
-PairProxy = ["contracts/PairProxy.cairo"]
-Pair = ["contracts/Pair.cairo"]
-Multicall = ["contracts/utils/Multicall.cairo"]
+FactoryC1 = ["src/FactoryC1.cairo"]
+RouterC1 = ["src/RouterC1.cairo"]
+PairC1 = ["src/PairC1.cairo"]
 

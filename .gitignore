@@ -136,5 +136,7 @@ dmypy.json
 
 node.json
 
+.vscode/
+
 127.0.0.1.accounts.json
 127.0.0.1.deployments.txt

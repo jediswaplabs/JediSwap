@@ -4,7 +4,7 @@
 // @notice Factory to create and register new pairs
 
 #[contract]
-mod FactoryC1 {
+mod FactoryC1Intermediate {
     use array::ArrayTrait;
     use zeroable::Zeroable;
     use starknet::ContractAddress;
@@ -30,6 +30,7 @@ mod FactoryC1 {
         ContractAddress>, // @dev Pair address for pair of `token0` and `token1`
         _num_of_pairs: u32, // @dev Total pairs
         _pair_contract_class_hash: ClassHash,
+        Proxy_admin: ContractAddress, // @dev Proxy admin contract address, to be used to finalize Cairo 1 upgrade.
     }
 
     // @dev Emitted each time a pair is created via createPair
@@ -84,6 +85,15 @@ mod FactoryC1 {
         let num_pairs = _num_of_pairs::read();
         let mut current_index = 0;
         loop {
+            match gas::withdraw_gas_all(get_builtin_costs()) {
+                Option::Some(_) => {},
+                Option::None(_) => {
+                    let mut err_data = array::array_new();
+                    array::array_append(ref err_data, 'Out of gas');
+                    panic(err_data)
+                },
+            }
+
             if current_index == num_pairs {
                 break true;
             }
@@ -186,6 +196,30 @@ mod FactoryC1 {
         assert(sender == fee_to_setter, 'must be fee to setter');
         assert(!new_fee_to_setter.is_zero(), 'must be non zero');
         _fee_to_setter::write(new_fee_to_setter);
+    }
+
+    // @notice This is an intermediate state to finalize upgrade to non-upgradable Factory Cairo 1.0
+    // @dev Only Proxy_admin can call
+    // @param new_implementation_class New implementation hash
+    #[external]
+    fn replace_implementation_class(new_implementation_class: ClassHash) {
+        let sender = get_caller_address();
+        let proxy_admin = Proxy_admin::read();
+        assert(sender == proxy_admin, 'must be admin');
+        assert(!new_implementation_class.is_zero(), 'must be non zero');
+        replace_class_syscall(new_implementation_class);
+    }
+
+    // @notice This replaces _pair_contract_class_hash used to deploy new pairs
+    // @dev Only Proxy_admin can call
+    // @param new_pair_contract_class New _pair_contract_class_hash
+    #[external]
+    fn replace_pair_contract_hash(new_pair_contract_class: ClassHash) {
+        let sender = get_caller_address();
+        let proxy_admin = Proxy_admin::read();
+        assert(sender == proxy_admin, 'must be admin');
+        assert(!new_implementation_class.is_zero(), 'must be non zero');
+        _pair_contract_class_hash::write(new_pair_contract_class);
     }
 
     //

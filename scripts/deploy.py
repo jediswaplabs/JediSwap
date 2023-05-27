@@ -5,6 +5,7 @@ from starknet_py.net.account.account import Account
 from starknet_py.net.signer.stark_curve_signer import KeyPair
 from starknet_py.net.models import StarknetChainId
 from starknet_py.hash.casm_class_hash import compute_casm_class_hash
+from starknet_py.net.udc_deployer.deployer import Deployer
 from starknet_py.net.schemas.gateway import CasmClassSchema
 from pathlib import Path
 from base_funcs import *
@@ -18,24 +19,23 @@ tokens = []
 
 async def main():
     network_arg = sys.argv[1]
-    deploy_token = None
 
     if network_arg == 'local':
-        from config.local import fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, max_fee
+        from config.local import fee_to_setter_address, factory_address, router_address, token_addresses_and_decimals, declared_token_class_hash, max_fee
         local_network = "http://127.0.0.1:5050"
         current_client = GatewayClient({"feeder_gateway_url": f"{local_network}/feeder_gateway", "gateway_url": f"{local_network}/gateway"})
         deployed_accounts_url = f"{local_network}/predeployed_accounts" 
         response = requests.get(deployed_accounts_url)
         deployed_accounts = response.json()
-        deployer = Account(
+        deployer_account = Account(
             client=current_client, 
             address=deployed_accounts[0]["address"],
             key_pair=KeyPair(private_key=int(deployed_accounts[0]["private_key"], 16), public_key=int(deployed_accounts[0]["public_key"], 16)),
             chain=StarknetChainId.TESTNET,
             )
-        print(f"Deployer Address: {deployer.address}, {hex(deployer.address)}")
+        print(f"Deployer Address: {deployer_account.address}, {hex(deployer_account.address)}")
         if fee_to_setter_address is None:
-            fee_to_setter_address = deployer.address
+            fee_to_setter_address = deployer_account.address
         else:
             fee_to_setter_address = int(fee_to_setter_address, 16)
     elif network_arg == 'testnet':
@@ -57,77 +57,72 @@ async def main():
     ## Deploy factory and router
     
     if factory_address is None:
-        declare_transaction = await deployer.sign_declare_transaction(compiled_contract=Path("build/Pair.json").read_text(), max_fee=int(1e16))
-        resp = await deployer.client.declare(transaction=declare_transaction)
-        await deployer.client.wait_for_tx(resp.transaction_hash)
+        casm_class = CasmClassSchema().loads(Path("target/dev/JediSwap_PairC1.casm.json").read_text())
+        casm_class_hash = compute_casm_class_hash(casm_class)
+        declare_transaction = await deployer_account.sign_declare_v2_transaction(compiled_contract=Path("target/dev/JediSwap_PairC1.sierra.json").read_text(), compiled_class_hash=casm_class_hash, max_fee=int(1e16))
+        resp = await deployer_account.client.declare(transaction=declare_transaction)
+        await deployer_account.client.wait_for_tx(resp.transaction_hash)
         declared_pair_class_hash = resp.class_hash
         print(f"Declared pair class hash: {declared_pair_class_hash}, {hex(declared_pair_class_hash)}")
-        declare_transaction = await deployer.sign_declare_transaction(compiled_contract=Path("build/PairProxy.json").read_text(), max_fee=int(1e16))
-        resp = await deployer.client.declare(transaction=declare_transaction)
-        await deployer.client.wait_for_tx(resp.transaction_hash)
-        declared_pair_proxy_class_hash = resp.class_hash
-        print(f"Declared pair proxy class hash: {declared_pair_proxy_class_hash}, {hex(declared_pair_proxy_class_hash)}")        
-        casm_class = CasmClassSchema().loads(Path("build/FactoryC1.casm").read_text())
+        casm_class = CasmClassSchema().loads(Path("target/dev/JediSwap_FactoryC1.casm.json").read_text())
         casm_class_hash = compute_casm_class_hash(casm_class)
-        declare_transaction = await deployer.sign_declare_v2_transaction(compiled_contract=Path("build/FactoryC1.json").read_text(), compiled_class_hash=casm_class_hash, max_fee=int(1e16))
-        resp = await deployer.client.declare(transaction=declare_transaction)
-        await deployer.client.wait_for_tx(resp.transaction_hash)
+        declare_transaction = await deployer_account.sign_declare_v2_transaction(compiled_contract=Path("target/dev/JediSwap_FactoryC1.sierra.json").read_text(), compiled_class_hash=casm_class_hash, max_fee=int(1e16))
+        resp = await deployer_account.client.declare(transaction=declare_transaction)
+        await deployer_account.client.wait_for_tx(resp.transaction_hash)
         declared_factory_class_hash = resp.class_hash
         print(f"Declared factory class hash: {declared_factory_class_hash}, {hex(declared_factory_class_hash)}")
-        declare_result = await Contract.declare(account=deployer, compiled_contract=Path("build/FactoryProxy.json").read_text(),  max_fee=int(1e16))
-        await declare_result.wait_for_acceptance()
-        declared_factory_proxy_class_hash = declare_result.class_hash
-        print(f"Declared factory proxy class hash: {declared_factory_proxy_class_hash}, {hex(declared_factory_proxy_class_hash)}")
-        deploy_result = await declare_result.deploy(constructor_args=[declared_factory_class_hash, declared_pair_proxy_class_hash, declared_pair_class_hash, fee_to_setter_address], max_fee=int(1e16))
-        await deploy_result.wait_for_acceptance()
-        factory_address = deploy_result.deployed_contract.address
-    factory = Contract(address=factory_address, abi=json.loads(Path("build/Factory_abi.json").read_text()), provider=deployer)
+        udc_deployer = Deployer()
+        contract_deployment = udc_deployer.create_contract_deployment_raw(class_hash=declared_factory_class_hash, raw_calldata=[declared_pair_class_hash, fee_to_setter_address])
+        deploy_invoke_transaction = await deployer_account.sign_invoke_transaction(calls=contract_deployment.call, max_fee=int(1e16))
+        resp = await deployer_account.client.send_transaction(deploy_invoke_transaction)
+        await deployer_account.client.wait_for_tx(resp.transaction_hash)
+        factory_address = contract_deployment.address
+    factory = Contract(address=factory_address, abi=json.loads(Path("build/Factory_abi.json").read_text()), provider=deployer_account)
     print(f"Factory deployed: {factory.address}, {hex(factory.address)}")
     result = await factory.functions["get_fee_to_setter"].call()
     print(f"Fee to setter: {result.address}, {hex(result.address)}")
 
     if router_address is None:
-        casm_class = CasmClassSchema().loads(Path("build/RouterC1.casm").read_text())
+        casm_class = CasmClassSchema().loads(Path("target/dev/JediSwap_RouterC1.casm.json").read_text())
         casm_class_hash = compute_casm_class_hash(casm_class)
-        declare_transaction = await deployer.sign_declare_v2_transaction(compiled_contract=Path("build/RouterC1.json").read_text(), compiled_class_hash=casm_class_hash, max_fee=int(1e16))
-        resp = await deployer.client.declare(transaction=declare_transaction)
-        await deployer.client.wait_for_tx(resp.transaction_hash)
+        declare_transaction = await deployer_account.sign_declare_v2_transaction(compiled_contract=Path("target/dev/JediSwap_RouterC1.sierra.json").read_text(), compiled_class_hash=casm_class_hash, max_fee=int(1e16))
+        resp = await deployer_account.client.declare(transaction=declare_transaction)
+        await deployer_account.client.wait_for_tx(resp.transaction_hash)
         declared_router_class_hash = resp.class_hash
         print(f"Declared router class hash: {declared_router_class_hash}, {hex(declared_router_class_hash)}")
-        declare_result = await Contract.declare(account=deployer, compiled_contract=Path("build/RouterProxy.json").read_text(), max_fee=int(1e16))
-        await declare_result.wait_for_acceptance()
-        declared_router_proxy_class_hash = declare_result.class_hash
-        print(f"Declared router proxy class hash: {declared_router_proxy_class_hash}, {hex(declared_router_proxy_class_hash)}")
-        deploy_result = await declare_result.deploy(constructor_args=[declared_router_class_hash, factory.address, fee_to_setter_address], max_fee=int(1e16))
-        await deploy_result.wait_for_acceptance()
-        router_address = deploy_result.deployed_contract.address
-    router = Contract(address=router_address, abi=json.loads(Path("build/Router_abi.json").read_text()), provider=deployer)
+        udc_deployer = Deployer()
+        contract_deployment = udc_deployer.create_contract_deployment_raw(class_hash=declared_router_class_hash, raw_calldata=[factory.address])
+        deploy_invoke_transaction = await deployer_account.sign_invoke_transaction(calls=contract_deployment.call, max_fee=int(1e16))
+        resp = await deployer_account.client.send_transaction(deploy_invoke_transaction)
+        await deployer_account.client.wait_for_tx(resp.transaction_hash)
+        router_address = contract_deployment.address
+    router = Contract(address=router_address, abi=json.loads(Path("build/Router_abi.json").read_text()), provider=deployer_account)
     print(f"Router deployed: {router.address}, {hex(router.address)}")
 
-    # ## Deploy and Mint tokens
+    ## Deploy and Mint tokens
     
-    # for (token_address, token_decimals) in token_addresses_and_decimals:
-    #     token = await deploy_or_get_token(current_client, token_address, token_decimals, deployer, max_fee)
-    #     tokens.append(token)
+    for (token_address, token_decimals) in token_addresses_and_decimals:
+        token,  declared_token_class_hash = await deploy_or_get_token(token_address, declared_token_class_hash, deployer_account, max_fee)
+        tokens.append(token)
 
-    # to_create_pairs_array = [
-    #     (tokens[0], tokens[1], 10 ** 8, int((10 ** 8) / 2)), 
-    #     (tokens[0], tokens[2], 10 ** 8, (10 ** 8) * 2),
-    #     (tokens[0], tokens[3], 0.000162, 0.5),
-    #     (tokens[3], tokens[1], 10 ** 8, int((10 ** 8) / 2)),
-    #     (tokens[3], tokens[2], 10 ** 8, (10 ** 8) * 2)
-    #     ]
+    to_create_pairs_array = [
+        (tokens[0], tokens[1], 10 ** 8, 10 ** 8), 
+        # (tokens[0], tokens[2], 10 ** 8, (10 ** 8) * 2),
+        # (tokens[0], tokens[3], 0.000162, 0.5),
+        # (tokens[3], tokens[1], 10 ** 8, int((10 ** 8) / 2)),
+        # (tokens[3], tokens[2], 10 ** 8, (10 ** 8) * 2)
+        ]
 
-    # for (token0, token1, amount0, amount1) in to_create_pairs_array:
+    for (token0, token1, amount0, amount1) in to_create_pairs_array:
         
-    #     # Set pair
-    #     await create_or_get_pair(current_client, factory, token0, token1, deployer, max_fee)
+        # Set pair
+        await create_or_get_pair(current_client, factory, token0, token1, deployer_account, max_fee)
 
-    #     # Add liquidity
-    #     await add_liquidity_to_pair(current_client, factory, router, token0, token1, amount0, amount1, deployer, max_fee)
+        # Add liquidity
+        await add_liquidity_to_pair(current_client, factory, router, token0, token1, amount0, amount1, deployer_account, max_fee)
 
     #     # Swap
-    #     await swap_token0_to_token1(current_client, factory, router, token0, token1, amount0/20, deployer, max_fee)
+        await swap_token0_to_token1(current_client, factory, router, token0, token1, amount0/20, deployer_account, max_fee)
 
 
 if __name__ == "__main__":

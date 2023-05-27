@@ -7,7 +7,7 @@
 //      Also an ERC20 token
 
 #[contract]
-mod PairC1 {
+mod PairC1Intermediate {
     use JediSwap::utils::erc20::ERC20;
     use traits::Into; // TODO remove intos when u256 inferred type is available
     use option::OptionTrait;
@@ -19,7 +19,7 @@ mod PairC1 {
     use starknet::get_block_timestamp;
     use starknet::contract_address_const;
     use integer::u128_try_from_felt252;
-    use integer::u256_sqrt;
+    use integer::u128_sqrt; // TODO change all to native u256 sqrt when available
 
 
     //
@@ -61,6 +61,7 @@ mod PairC1 {
         _klast: u256, // @dev reserve0 * reserve1, as of immediately after the most recent liquidity event
         _locked: bool, // @dev Boolean to check reentrancy
         _factory: ContractAddress, // @dev Factory contract address
+        Proxy_admin: ContractAddress, // @dev Proxy admin contract address, to be used to finalize Cairo 1 upgrade.
     }
 
     // @notice An event emitted whenever mint() is called.
@@ -98,7 +99,7 @@ mod PairC1 {
     #[constructor]
     fn constructor(token0: ContractAddress, token1: ContractAddress) {
         assert(!token0.is_zero() & !token1.is_zero(), 'must be non zero');
-        ERC20::initializer('JediSwap Pair', 'JEDI-P');
+        ERC20::initializer('JediSwap Pair', 'JEDI-P'); //TODO ERC20 integration
         _locked::write(false);
         _token0::write(token0);
         _token1::write(token1);
@@ -290,24 +291,21 @@ mod PairC1 {
         let _total_supply = totalSupply();
         let mut liquidity = 0.into();
         if (_total_supply == 0.into()) {
-            liquidity = u256 { low: u256_sqrt((amount0 * amount1) - 1000.into()), high: 0 };
+            liquidity = u256 { low: u128_sqrt(((amount0 * amount1) - 1000.into()).low), high: 0 };
             ERC20::_mint(contract_address_const::<1>(), 1000.into());
-            ERC20::_mint(to, liquidity);
         } else {
             let liquidity0 = (amount0 * _total_supply) / reserve0;
             let liquidity1 = (amount1 * _total_supply) / reserve1;
             if liquidity0 < liquidity1 {
                 liquidity = liquidity0;
-                ERC20::_mint(to, liquidity);
             } else {
                 liquidity = liquidity1;
-                ERC20::_mint(to, liquidity);
             }
         }
 
         assert(liquidity > 0.into(), 'insufficient liquidity minted');
 
-        // ERC20::_mint(to, liquidity);  // TODO - Doesn't work here ??
+        ERC20::_mint(to, liquidity);
 
         _update(balance0, balance1, reserve0, reserve1);
 
@@ -478,6 +476,18 @@ mod PairC1 {
         _unlock();
     }
 
+    // @notice This is an intermediate state to finalize upgrade to non-upgradable Factory Cairo 1.0
+    // @dev Only Proxy_admin can call
+    // @param new_implementation_class New implementation hash
+    #[external]
+    fn replace_implementation_class(new_implementation_class: ClassHash) {
+        let sender = get_caller_address();
+        let proxy_admin = Proxy_admin::read();
+        assert(sender == proxy_admin, 'must be admin');
+        assert(!new_implementation_class.is_zero(), 'must be non zero');
+        replace_class_syscall(new_implementation_class);
+    }
+
     //
     // Internals Pair
     //
@@ -507,8 +517,8 @@ mod PairC1 {
 
         if (fee_on) {
             if (klast != 0.into()) {
-                let rootk = u256 { low: u256_sqrt(reserve0 * reserve1), high: 0 };
-                let rootklast = u256 { low: u256_sqrt(klast), high: 0 };
+                let rootk = 0.into();
+                let rootklast = 0.into();
                 if (rootk > rootklast) {
                     let numerator = totalSupply() * (rootk - rootklast);
                     let denominator = (rootk * 5.into()) + rootklast;

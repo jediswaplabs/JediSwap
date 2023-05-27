@@ -41,9 +41,9 @@ async def deploy_or_get_token(token_address, declared_token_class_hash, deployer
     if token_address is None:
         print("Deploying Token")
         if declared_token_class_hash is None:
-            casm_class = CasmClassSchema().loads(Path("build/ERC20C1.casm").read_text())
+            casm_class = CasmClassSchema().loads(Path("target/dev/JediSwap_ERC20.casm.json").read_text())
             casm_class_hash = compute_casm_class_hash(casm_class)
-            declare_transaction = await deployer.sign_declare_v2_transaction(compiled_contract=Path("target/release/JediSwap_ERC20.sierra.json").read_text(), compiled_class_hash=casm_class_hash, max_fee=int(1e16))
+            declare_transaction = await deployer.sign_declare_v2_transaction(compiled_contract=Path("target/dev/JediSwap_ERC20.sierra.json").read_text(), compiled_class_hash=casm_class_hash, max_fee=int(1e16))
             resp = await deployer.client.declare(transaction=declare_transaction)
             await deployer.client.wait_for_tx(resp.transaction_hash)
             declared_token_class_hash = resp.class_hash
@@ -107,6 +107,7 @@ async def add_liquidity_to_pair(current_client, factory, router, token0, token1,
 async def swap_token0_to_token1(current_client, factory, router, token0, token1, amount0, deployer, max_fee):
 
     result = await token0.functions["decimals"].call()
+    print(amount0)
     amount0 = int(amount0 * (10 ** result.decimals))
     print(amount0)
 
@@ -129,12 +130,6 @@ async def swap_token0_to_token1(current_client, factory, router, token0, token1,
     pair = Contract(address=result.pair, abi=json.loads(Path("build/Pair_abi.json").read_text()), provider=current_client)
     result = await pair.functions["get_reserves"].call()
     print(result._asdict())
-    reserve0 = result.reserve0
-    reserve1 = result.reserve1
-    for i in range(0, 10):
-        required_amount = int(amount0 / (10**i))
-        result = await router_with_account.functions["quote"].call(required_amount, reserve0, reserve1)
-        print(required_amount, result.amountB, result.amountB/required_amount)
     result = await router_with_account.functions["get_amounts_out"].call(amount0, [token0.address, token1.address])
     print(result._asdict())
     estimated_fee = await router_with_account.functions["swap_exact_tokens_for_tokens"].prepare(amount0, 0, [token0.address, token1.address], deployer.address, deadline).estimate_fee()
