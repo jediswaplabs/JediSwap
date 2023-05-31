@@ -1,9 +1,7 @@
 [project]
-protostar-version = "0.9.4"
+protostar-version = "0.12.0"
 lib-path = "lib"
 
 [contracts]
-FactoryC1 = ["src/FactoryC1.cairo"]
-RouterC1 = ["src/RouterC1.cairo"]
-PairC1 = ["src/PairC1.cairo"]
+JediSwap = ["src"]
 

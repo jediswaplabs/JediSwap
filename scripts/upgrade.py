@@ -1,11 +1,9 @@
 import asyncio
 from starknet_py.contract import Contract
 from starknet_py.net.gateway_client import GatewayClient
-from starknet_py.net.account.account import Account
 from starknet_py.net.signer.stark_curve_signer import KeyPair
 from starknet_py.net.models import StarknetChainId
 from starknet_py.hash.casm_class_hash import compute_casm_class_hash
-from starknet_py.net.udc_deployer.deployer import Deployer
 from starknet_py.net.schemas.gateway import CasmClassSchema
 from pathlib import Path
 from cairo0_setup import *
