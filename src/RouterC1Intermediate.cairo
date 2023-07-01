@@ -359,10 +359,9 @@ mod RouterC1Intermediate {
             amount0Out = *amounts[current_index + 1];
         }
         let mut to: ContractAddress = _to;
-        if (current_index < (amounts_len
-            - 2)) {
-                to = _pair_for(*path[current_index + 1], *path[current_index + 2]);
-            }
+        if (current_index < (amounts_len - 2)) {
+            to = _pair_for(*path[current_index + 1], *path[current_index + 2]);
+        }
         let pair = _pair_for(*path[current_index], *path[current_index + 1]);
         let data = ArrayTrait::<felt252>::new();
         let pairDispatcher = IPairDispatcher { contract_address: pair };
@@ -491,9 +490,10 @@ mod RouterC1Intermediate {
             let (reserveIn, reserveOut) = _get_reserves(
                 *path[current_index - 1], *path[current_index]
             );
-            amounts.append(
-                _get_amount_in(*amounts[path.len() - current_index], reserveIn, reserveOut)
-            );
+            amounts
+                .append(
+                    _get_amount_in(*amounts[path.len() - current_index], reserveIn, reserveOut)
+                );
             current_index -= 1;
         };
         let mut final_amounts = ArrayTrait::<u256>::new();

@@ -397,9 +397,8 @@ mod PairC1Intermediate {
 
         if (data.len() > 0) {
             let JediSwapCalleeDispatcher = IJediSwapCalleeDispatcher { contract_address: to };
-            JediSwapCalleeDispatcher.jediswap_call(
-                get_caller_address(), amount0Out, amount1Out, data
-            );
+            JediSwapCalleeDispatcher
+                .jediswap_call(get_caller_address(), amount0Out, amount1Out, data);
         }
 
         let self_address = get_contract_address();

@@ -6,6 +6,7 @@ version = "1.0.0"
 sierra = true
 casm = true
 casm-add-pythonic-hints = true
+allowed-libfuncs-list.name = "experimental"
 
 [dependencies]
-starknet = ">=1.1.0"
+starknet = "2.0.0-rc4"
