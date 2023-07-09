@@ -112,9 +112,15 @@ async def swap_token0_to_token1(current_client, factory, router, token0, token1,
     print(amount0)
 
 
-    result = await token0.functions["balanceOf"].call(deployer.address)
+    try:
+        result = await token0.functions["balanceOf"].call(deployer.address)
+    except:
+        result = await token0.functions["balance_of"].call(deployer.address)
     print(f"Balance token0: {result.balance}")
-    result = await token1.functions["balanceOf"].call(deployer.address)
+    try:
+        result = await token1.functions["balanceOf"].call(deployer.address)
+    except:
+        result = await token1.functions["balance_of"].call(deployer.address)
     print(f"Balance token1: {result.balance}")
 
     # Approve
@@ -140,7 +146,13 @@ async def swap_token0_to_token1(current_client, factory, router, token0, token1,
     result = await pair.functions["get_reserves"].call()
     print(result._asdict())
 
-    result = await token0.functions["balanceOf"].call(deployer.address)
+    try:
+        result = await token0.functions["balanceOf"].call(deployer.address)
+    except:
+        result = await token0.functions["balance_of"].call(deployer.address)
     print(f"Balance token0: {result.balance}")
-    result = await token1.functions["balanceOf"].call(deployer.address)
+    try:
+        result = await token1.functions["balanceOf"].call(deployer.address)
+    except:
+        result = await token1.functions["balance_of"].call(deployer.address)
     print(f"Balance token1: {result.balance}")

@@ -19,6 +19,8 @@ trait IFactoryC1<TContractState> {
     fn create_pair(ref self: TContractState, tokenA: ContractAddress, tokenB: ContractAddress) -> ContractAddress;
     fn set_fee_to(ref self: TContractState, new_fee_to: ContractAddress);
     fn set_fee_to_setter(ref self: TContractState, new_fee_to_setter: ContractAddress);
+    fn replace_implementation_class(ref self: TContractState, new_implementation_class: ClassHash);
+    fn replace_pair_contract_hash(ref self: TContractState, new_pair_contract_class: ClassHash);
 }
 
 #[starknet::contract]
@@ -48,6 +50,7 @@ mod FactoryC1 {
         ContractAddress>, // @dev Pair address for pair of `token0` and `token1`
         _num_of_pairs: u32, // @dev Total pairs
         _pair_contract_class_hash: ClassHash,
+        Proxy_admin: ContractAddress, // @dev Admin contract address, to be used till we finalize Cairo upgrades.
     }
 
     #[event]
@@ -168,10 +171,9 @@ mod FactoryC1 {
             );
             let fee_to_setter = FactoryC1::get_fee_to_setter(@self);
 
-            let mut constructor_calldata = ArrayTrait::new();
-
-            constructor_calldata.append(contract_address_to_felt252(token0));
-            constructor_calldata.append(contract_address_to_felt252(token1));
+            let mut constructor_calldata = Default::default();
+            Serde::serialize(@token0, ref constructor_calldata);
+            Serde::serialize(@token1, ref constructor_calldata);
 
             let syscall_result = deploy_syscall(
                 pair_contract_class_hash, salt, constructor_calldata.span(), false
@@ -206,6 +208,28 @@ mod FactoryC1 {
             assert(sender == fee_to_setter, 'must be fee to setter');
             assert(!new_fee_to_setter.is_zero(), 'must be non zero');
             self._fee_to_setter.write(new_fee_to_setter);
+        }
+
+        // @notice This is used upgrade (Will push a upgrade without this to finalize)
+        // @dev Only Proxy_admin can call
+        // @param new_implementation_class New implementation hash
+        fn replace_implementation_class(ref self: ContractState, new_implementation_class: ClassHash) {
+            let sender = get_caller_address();
+            let proxy_admin = self.Proxy_admin.read();
+            assert(sender == proxy_admin, 'must be admin');
+            assert(!new_implementation_class.is_zero(), 'must be non zero');
+            replace_class_syscall(new_implementation_class);
+        }
+
+        // @notice This replaces _pair_contract_class_hash used to deploy new pairs
+        // @dev Only Proxy_admin can call
+        // @param new_pair_contract_class New _pair_contract_class_hash
+        fn replace_pair_contract_hash(ref self: ContractState, new_pair_contract_class: ClassHash) {
+            let sender = get_caller_address();
+            let proxy_admin = self.Proxy_admin.read();
+            assert(sender == proxy_admin, 'must be admin');
+            assert(!new_pair_contract_class.is_zero(), 'must be non zero');
+            self._pair_contract_class_hash.write(new_pair_contract_class);
         }
     }
 

@@ -5,13 +5,15 @@
 //       https://github.com/Uniswap/v2-periphery/blob/master/contracts/UniswapV2Router02.sol
 
 use starknet::ContractAddress;
+use starknet::ClassHash;
 
 //
 // External Interfaces
 //
 #[starknet::interface]
 trait IERC20<T> {
-    fn transferFrom(ref self: T, sender: ContractAddress, recipient: ContractAddress, amount: u256) -> bool; // TODO which transferFrom
+    fn transfer_from(ref self: T, sender: ContractAddress, recipient: ContractAddress, amount: u256) -> bool;
+    fn transferFrom(ref self: T, sender: ContractAddress, recipient: ContractAddress, amount: u256) -> bool; // TODO Remove after regenesis
 }
 
 #[starknet::interface]
@@ -46,6 +48,7 @@ trait IRouterC1<TContractState> {
     fn remove_liquidity(ref self: TContractState, tokenA: ContractAddress, tokenB: ContractAddress, liquidity: u256, amountAMin: u256, amountBMin: u256, to: ContractAddress, deadline: u64) -> (u256, u256);
     fn swap_exact_tokens_for_tokens(ref self: TContractState, amountIn: u256, amountOutMin: u256, path: Array::<ContractAddress>, to: ContractAddress, deadline: u64) -> Array::<u256>;
     fn swap_tokens_for_exact_tokens(ref self: TContractState, amountOut: u256, amountInMax: u256, path: Array::<ContractAddress>, to: ContractAddress, deadline: u64) -> Array::<u256>;
+    fn replace_implementation_class(ref self: TContractState, new_implementation_class: ClassHash);
 }
 
 #[starknet::contract]
@@ -53,13 +56,17 @@ mod RouterC1 {
     use traits::Into;
     use array::ArrayTrait;
     use array::SpanTrait;
+    use result::ResultTrait;
     use zeroable::Zeroable;
     use starknet::ContractAddress;
+    use starknet::ClassHash;
     use starknet::get_caller_address;
     use starknet::get_block_timestamp;
     use starknet::contract_address_const;
     use starknet::contract_address_to_felt252;
     use integer::u256_from_felt252;
+    use starknet::syscalls::replace_class_syscall;
+    use starknet::syscalls::call_contract_syscall;
 
     use super::{
         IERC20Dispatcher, IERC20DispatcherTrait, IPairDispatcher, IPairDispatcherTrait, IFactoryDispatcher, IFactoryDispatcherTrait
@@ -70,7 +77,8 @@ mod RouterC1 {
     //
     #[storage]
     struct Storage {
-        _factory: ContractAddress, // @dev Factory contract address         
+        _factory: ContractAddress, // @dev Factory contract address  
+        Proxy_admin: ContractAddress, // @dev Admin contract address, to be used till we finalize Cairo upgrades.       
     }
 
     //
@@ -187,10 +195,8 @@ mod RouterC1 {
             let factory = self._factory.read();
             let pair = _pair_for(factory, tokenA, tokenB);
             let sender = get_caller_address();
-            let tokenADispatcher = IERC20Dispatcher { contract_address: tokenA };
-            tokenADispatcher.transferFrom(sender, pair, amountA); // TODO which transferFrom
-            let tokenBDispatcher = IERC20Dispatcher { contract_address: tokenB };
-            tokenBDispatcher.transferFrom(sender, pair, amountB);
+            _transfer_token(tokenA, sender, pair, amountA);
+            _transfer_token(tokenB, sender, pair, amountB);
             let pairDispatcher = IPairDispatcher { contract_address: pair };
             let liquidity = pairDispatcher.mint(to);
             (amountA, amountB, liquidity)
@@ -221,8 +227,7 @@ mod RouterC1 {
             let factory = self._factory.read();
             let pair = _pair_for(factory, tokenA, tokenB);
             let sender = get_caller_address();
-            let pairERC20Dispatcher = IERC20Dispatcher { contract_address: pair };
-            pairERC20Dispatcher.transferFrom(sender, pair, liquidity);
+            _transfer_token(pair, sender, pair, liquidity);
             let pairDispatcher = IPairDispatcher { contract_address: pair };
             let (amount0, amount1) = pairDispatcher.burn(to);
             let (token0, _) = _sort_tokens(tokenA, tokenB);
@@ -265,8 +270,7 @@ mod RouterC1 {
             assert(*amounts[amounts.len() - 1] >= amountOutMin, 'insufficient output amount');
             let pair = _pair_for(factory, *path[0], *path[1]);
             let sender = get_caller_address();
-            let pairERC20Dispatcher = IERC20Dispatcher { contract_address: *path[0] };
-            pairERC20Dispatcher.transferFrom(sender, pair, *amounts[0]);
+            _transfer_token(*path[0], sender, pair, *amounts[0]);
             InternalImpl::_swap(ref self, 0, path.len(), ref amounts, path.span(), to);
             amounts
         }
@@ -294,10 +298,20 @@ mod RouterC1 {
             assert(*amounts[0] <= amountInMax, 'excessive input amount');
             let pair = _pair_for(factory, *path[0], *path[1]);
             let sender = get_caller_address();
-            let pairERC20Dispatcher = IERC20Dispatcher { contract_address: *path[0] };
-            pairERC20Dispatcher.transferFrom(sender, pair, *amounts[0]);
+            _transfer_token(*path[0], sender, pair, *amounts[0]);
             InternalImpl::_swap(ref self, 0, path.len(), ref amounts, path.span(), to);
             amounts
+        }
+
+        // @notice This is used upgrade (Will push a upgrade without this to finalize)
+        // @dev Only Proxy_admin can call
+        // @param new_implementation_class New implementation hash
+        fn replace_implementation_class(ref self: ContractState, new_implementation_class: ClassHash) {
+            let sender = get_caller_address();
+            let proxy_admin = self.Proxy_admin.read();
+            assert(sender == proxy_admin, 'must be admin');
+            assert(!new_implementation_class.is_zero(), 'must be non zero');
+            replace_class_syscall(new_implementation_class);
         }
     }
 
@@ -379,6 +393,27 @@ mod RouterC1 {
     fn _ensure_deadline(deadline: u64) {
             let block_timestamp = get_block_timestamp();
             assert(deadline >= block_timestamp, 'expired');
+        }
+
+    fn _transfer_token(
+            token: ContractAddress, sender: ContractAddress, recipient: ContractAddress, amount: u256
+        ) {
+            // let tokenDispatcher = IERC20Dispatcher { contract_address: token };
+            // tokenDispatcher.transfer_from(sender, recipient, amount) // TODO dispatcher with error handling
+
+            let mut calldata = Default::default();
+            Serde::serialize(@sender, ref calldata);
+            Serde::serialize(@recipient, ref calldata);
+            Serde::serialize(@amount, ref calldata);
+
+            let selector_for_transfer_from = 1555377517929037318987687899825758707538299441176447799544473656894800517992;
+            let selector_for_transferFrom = 116061167288211781254449158074459916871457383008289084697957612485591092000;
+
+            let mut result = call_contract_syscall(token, selector_for_transfer_from, calldata.span());
+            if (result.is_err()) {
+                result = call_contract_syscall(token, selector_for_transferFrom, calldata.span());
+            }
+            result.unwrap_syscall();    // Additional error handling
         }
 
      fn _sort_tokens(
