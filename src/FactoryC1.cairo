@@ -1,4 +1,4 @@
-// @title JediSwap V2 Factory Cairo 1.0
+// @title JediSwap Factory Cairo 1.0
 // @author Mesh Finance
 // @license MIT
 // @notice Factory to create and register new pairs
@@ -27,15 +27,11 @@ trait IFactoryC1<TContractState> {
 mod FactoryC1 {
     use array::ArrayTrait;
     use zeroable::Zeroable;
-    use starknet::ContractAddress;
-    use starknet::ClassHash;
-    use starknet::get_caller_address;
-    use starknet::contract_address_const;
-    use starknet::contract_address_to_felt252;
+    use starknet::{ContractAddress, ClassHash, SyscallResult, SyscallResultTrait, get_caller_address, contract_address_const, contract_address_to_felt252};
     use starknet::class_hash::class_hash_to_felt252;
     use integer::u256_from_felt252;
-    use starknet::syscalls::deploy_syscall;
-    use starknet::syscalls::replace_class_syscall;
+    use starknet::syscalls::{deploy_syscall, replace_class_syscall};
+    use poseidon::poseidon_hash_span;
 
 
     //
@@ -166,9 +162,11 @@ mod FactoryC1 {
 
             let pair_contract_class_hash = self._pair_contract_class_hash.read();
             let (token0, token1) = _sort_tokens(tokenA, tokenB);
-            let salt = pedersen(
-                contract_address_to_felt252(token0), contract_address_to_felt252(token1)
-            );
+            let mut hash_data: Array<felt252> = ArrayTrait::new();
+            Serde::serialize(@token0, ref hash_data);
+            Serde::serialize(@token1, ref hash_data);
+            let salt = poseidon_hash_span(hash_data.span());
+            
             let fee_to_setter = FactoryC1::get_fee_to_setter(@self);
 
             let mut constructor_calldata = Default::default();

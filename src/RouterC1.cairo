@@ -54,19 +54,12 @@ trait IRouterC1<TContractState> {
 #[starknet::contract]
 mod RouterC1 {
     use traits::Into;
-    use array::ArrayTrait;
-    use array::SpanTrait;
+    use array::{ArrayTrait, SpanTrait};
     use result::ResultTrait;
     use zeroable::Zeroable;
-    use starknet::ContractAddress;
-    use starknet::ClassHash;
-    use starknet::get_caller_address;
-    use starknet::get_block_timestamp;
-    use starknet::contract_address_const;
-    use starknet::contract_address_to_felt252;
+    use starknet::{ContractAddress, ClassHash, SyscallResult, SyscallResultTrait, get_caller_address, get_block_timestamp, contract_address_const, contract_address_to_felt252};
     use integer::u256_from_felt252;
-    use starknet::syscalls::replace_class_syscall;
-    use starknet::syscalls::call_contract_syscall;
+    use starknet::syscalls::{replace_class_syscall, call_contract_syscall};
 
     use super::{
         IERC20Dispatcher, IERC20DispatcherTrait, IPairDispatcher, IPairDispatcherTrait, IFactoryDispatcher, IFactoryDispatcherTrait

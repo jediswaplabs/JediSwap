@@ -75,21 +75,12 @@ mod PairC1 {
     use JediSwap::utils::erc20::ERC20;
     use traits::Into; // TODO remove intos when u256 inferred type is available
     use option::OptionTrait;
-    use array::ArrayTrait;
-    use array::SpanTrait;
+    use array::{ArrayTrait, SpanTrait};
     use result::ResultTrait;
     use zeroable::Zeroable;
-    use starknet::ContractAddress;
-    use starknet::ClassHash;
-    use starknet::get_caller_address;
-    use starknet::get_contract_address;
-    use starknet::get_block_timestamp;
-    use starknet::contract_address_const;
-    use integer::u128_try_from_felt252;
-    use integer::u256_sqrt;
-    use integer::u256_from_felt252;
-    use starknet::syscalls::replace_class_syscall;
-    use starknet::syscalls::call_contract_syscall;
+    use starknet::{ContractAddress, ClassHash, SyscallResult, SyscallResultTrait, get_caller_address, get_contract_address, get_block_timestamp, contract_address_const};
+    use integer::{u128_try_from_felt252, u256_sqrt, u256_from_felt252};
+    use starknet::syscalls::{replace_class_syscall, call_contract_syscall};
 
     use super::{
         IERC20Dispatcher, IERC20DispatcherTrait, IFactoryDispatcher, IFactoryDispatcherTrait, IJediSwapCalleeDispatcher, IJediSwapCalleeDispatcherTrait
