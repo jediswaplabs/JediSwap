@@ -28,20 +28,18 @@ trait IRouterC1<T> {
 fn test_deployment_pair_factory_router() { // TODO Separate out once setup is available.
     let deployer_address = 123456789987654321;
 
-    let pair_class_hash = declare('PairC1');
+    let pair_class = declare('PairC1');
 
     let mut factory_constructor_calldata = Default::default();
-    Serde::serialize(@pair_class_hash, ref factory_constructor_calldata);
+    Serde::serialize(@pair_class.class_hash, ref factory_constructor_calldata);
     Serde::serialize(@deployer_address, ref factory_constructor_calldata);
-    let factory_class_hash = declare('FactoryC1');
-    let factory_prepared = PreparedContract { class_hash: factory_class_hash, constructor_calldata: @factory_constructor_calldata };
-    let factory_address = deploy(factory_prepared).unwrap();
+    let factory_class = declare('FactoryC1');
+    let factory_address = factory_class.deploy(@factory_constructor_calldata).unwrap();
 
     let mut router_constructor_calldata = Default::default();
     Serde::serialize(@factory_address, ref router_constructor_calldata);
-    let router_class_hash = declare('RouterC1');
-    let router_prepared = PreparedContract { class_hash: router_class_hash, constructor_calldata: @router_constructor_calldata };
-    let router_address = deploy(router_prepared).unwrap();
+    let router_class = declare('RouterC1');
+    let router_address = router_class.deploy(@router_constructor_calldata).unwrap();
 
     // Create a Dispatcher object that will allow interacting with the deployed contract
     let router_dispatcher = IRouterC1Dispatcher { contract_address: router_address };
