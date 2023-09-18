@@ -1,5 +1,8 @@
-use starknet:: { ContractAddress, ClassHash, contract_address_try_from_felt252, contract_address_const };
+use starknet:: { ContractAddress, ClassHash };
 use snforge_std::{ declare, get_class_hash, ContractClassTrait, ContractClass };
+
+mod utils;
+use utils::{ token0, token1, zero_addr };
 
 #[starknet::interface]
 trait IFactoryC1<T> {
@@ -34,18 +37,6 @@ trait IRouterC1<T> {
     fn swap_exact_tokens_for_tokens(ref self: T, amountIn: u256, amountOutMin: u256, path: Array::<ContractAddress>, to: ContractAddress, deadline: u64) -> Array::<u256>;
     fn swap_tokens_for_exact_tokens(ref self: T, amountOut: u256, amountInMax: u256, path: Array::<ContractAddress>, to: ContractAddress, deadline: u64) -> Array::<u256>;
     fn replace_implementation_class(ref self: T, new_implementation_class: ClassHash);
-}
-
-fn token0() -> ContractAddress {
-    contract_address_try_from_felt252('token0').unwrap()
-}
-
-fn token1() -> ContractAddress {
-    contract_address_try_from_felt252('token1').unwrap()
-}
-
-fn zero_addr() -> ContractAddress {
-    contract_address_const::<0>()
 }
 
 fn deploy_factory(pair_class: ContractClass) -> ContractAddress {
@@ -105,13 +96,6 @@ fn test_create2_deployed_pair() {
     let factory_address = deploy_factory(pair_class);
 
     let factory_dispatcher = IFactoryC1Dispatcher { contract_address: factory_address };
-    let fee_to_setter_address = factory_dispatcher.get_fee_to_setter();
-
-    let mut router_constructor_calldata = Default::default();
-    Serde::serialize(@factory_address, ref router_constructor_calldata);
-    let router_class = declare('RouterC1');
-    let router_address = router_class.deploy(@router_constructor_calldata).unwrap();
-    let router_dispatcher = IRouterC1Dispatcher { contract_address: router_address };
 
     let pair_address = factory_dispatcher.create_pair(token0(), token1());
     assert(pair_class_class_hash == get_class_hash(pair_address), 'Incorrect class hash');
