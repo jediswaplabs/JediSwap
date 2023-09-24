@@ -167,8 +167,6 @@ mod FactoryC1 {
             Serde::serialize(@token1, ref hash_data);
             let salt = poseidon_hash_span(hash_data.span());
             
-            let fee_to_setter = FactoryC1::get_fee_to_setter(@self);
-
             let mut constructor_calldata = Default::default();
             Serde::serialize(@token0, ref constructor_calldata);
             Serde::serialize(@token1, ref constructor_calldata);

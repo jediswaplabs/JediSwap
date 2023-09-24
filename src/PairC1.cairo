@@ -388,7 +388,7 @@ mod PairC1 {
             let _total_supply = PairC1::total_supply(@self);
             let mut liquidity = 0.into();
             if (_total_supply == 0.into()) {
-                liquidity = u256 { low: u256_sqrt((amount0 * amount1) - 1000.into()), high: 0 };
+                liquidity = u256 { low: u256_sqrt(amount0 * amount1) - 1000.try_into().unwrap(), high: 0 };
             } else {
                 let liquidity0 = (amount0 * _total_supply) / reserve0;
                 let liquidity1 = (amount1 * _total_supply) / reserve1;
