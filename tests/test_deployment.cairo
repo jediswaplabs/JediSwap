@@ -1,10 +1,8 @@
-use array::ArrayTrait;
-use result::ResultTrait;
-use starknet::ContractAddress;
-use starknet::ClassHash;
-use traits::TryInto;
-use option::OptionTrait;
+use starknet:: { ContractAddress, ClassHash };
 use snforge_std::{ declare, ContractClassTrait };
+
+mod utils;
+use utils::{ deployer_addr };
 
 #[starknet::interface]
 trait IRouterC1<T> {
@@ -26,13 +24,11 @@ trait IRouterC1<T> {
 
 #[test]
 fn test_deployment_pair_factory_router() { // TODO Separate out once setup is available.
-    let deployer_address = 123456789987654321;
-
     let pair_class = declare('PairC1');
 
     let mut factory_constructor_calldata = Default::default();
     Serde::serialize(@pair_class.class_hash, ref factory_constructor_calldata);
-    Serde::serialize(@deployer_address, ref factory_constructor_calldata);
+    Serde::serialize(@deployer_addr(), ref factory_constructor_calldata);
     let factory_class = declare('FactoryC1');
     let factory_address = factory_class.deploy(@factory_constructor_calldata).unwrap();
 

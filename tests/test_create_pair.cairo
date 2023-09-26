@@ -2,7 +2,7 @@ use starknet:: { ContractAddress, ClassHash };
 use snforge_std::{ declare, get_class_hash, ContractClassTrait, ContractClass };
 
 mod utils;
-use utils::{ token0, token1, zero_addr };
+use utils::{ deployer_addr, token0, token1, zero_addr };
 
 #[starknet::interface]
 trait IFactoryC1<T> {
@@ -40,11 +40,9 @@ trait IRouterC1<T> {
 }
 
 fn deploy_factory(pair_class: ContractClass) -> ContractAddress {
-    let deployer_address = 123456789987654321;
-
     let mut factory_constructor_calldata = Default::default();
     Serde::serialize(@pair_class.class_hash, ref factory_constructor_calldata);
-    Serde::serialize(@deployer_address, ref factory_constructor_calldata);
+    Serde::serialize(@deployer_addr(), ref factory_constructor_calldata);
     let factory_class = declare('FactoryC1');
     
     factory_class.deploy(@factory_constructor_calldata).unwrap()

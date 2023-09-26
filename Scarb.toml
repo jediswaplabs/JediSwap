@@ -10,4 +10,4 @@ allowed-libfuncs-list.name = "all"
 
 [dependencies]
 starknet = "2.2.0"
-snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry.git", tag = "v0.5.0" }
+snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry.git", tag = "v0.6.0" }

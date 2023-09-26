@@ -3,7 +3,7 @@ use snforge_std::{ declare, ContractClassTrait, ContractClass, start_warp, start
                    spy_events, SpyOn, EventSpy, EventFetcher, Event, EventAssertions };
 
 mod utils;
-use utils::{ token0, token1, burn_addr, user1 };
+use utils::{ deployer_addr, token0, token1, burn_addr, user1 };
 
 #[starknet::interface]
 trait IERC20<TContractState> {
@@ -65,13 +65,11 @@ const MINIMUM_LIQUIDITY: u256 = 1000;
 
 
 fn deploy_contracts() -> (ContractAddress, ContractAddress) {
-    let deployer_address = 123456789987654321;
-
     let pair_class = declare('PairC1');
 
     let mut factory_constructor_calldata = Default::default();
     Serde::serialize(@pair_class.class_hash, ref factory_constructor_calldata);
-    Serde::serialize(@deployer_address, ref factory_constructor_calldata);
+    Serde::serialize(@deployer_addr(), ref factory_constructor_calldata);
     let factory_class = declare('FactoryC1');
     
     let factory_address = factory_class.deploy(@factory_constructor_calldata).unwrap();
