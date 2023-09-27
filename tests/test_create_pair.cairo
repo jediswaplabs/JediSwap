@@ -1,8 +1,7 @@
 use starknet:: { ContractAddress, ClassHash };
 use snforge_std::{ declare, get_class_hash, ContractClassTrait, ContractClass };
 
-mod utils;
-use utils::{ deployer_addr, token0, token1, zero_addr };
+use tests::utils::{ deployer_addr, token0, token1, zero_addr };
 
 #[starknet::interface]
 trait IFactoryC1<T> {

@@ -1,8 +1,7 @@
 use starknet:: { ContractAddress, ClassHash };
 use snforge_std::{ declare, ContractClassTrait };
 
-mod utils;
-use utils::{ deployer_addr };
+use tests::utils::{ deployer_addr };
 
 #[starknet::interface]
 trait IRouterC1<T> {
