@@ -2,8 +2,7 @@ use starknet:: { ContractAddress, ClassHash };
 use snforge_std::{ declare, ContractClassTrait, ContractClass, start_warp, start_prank, stop_prank,
                    spy_events, SpyOn, EventSpy, EventFetcher, Event, EventAssertions };
 
-mod utils;
-use utils::{ deployer_addr, token0, token1, burn_addr, user1 };
+use tests::utils::{ deployer_addr, token0, token1, burn_addr, user1 };
 
 #[starknet::interface]
 trait IERC20<TContractState> {

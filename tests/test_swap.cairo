@@ -6,8 +6,8 @@ use JediSwap::utils::erc20::ERC20::InternalImpl;
 use starknet::{SyscallResult, SyscallResultTrait, get_caller_address, get_contract_address, get_block_timestamp, contract_address_const};
 use integer::{u128_try_from_felt252, u256_sqrt, u256_from_felt252};
 use starknet::syscalls::{replace_class_syscall, call_contract_syscall};
-mod utils;
-use utils::{ deployer_addr, token0, token1, burn_addr, user1, user2 };
+
+use tests::utils::{ deployer_addr, token0, token1, burn_addr, user1, user2 };
 use starknet::testing;
 
 // fn deploy_erc20(initial_supply: u256) -> (ContractAddress, ContractAddress) {
