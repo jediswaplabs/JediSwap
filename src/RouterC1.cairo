@@ -136,9 +136,7 @@ mod RouterC1 {
 
         // @notice Performs chained get_amount_out calculations on any number of pairs
         // @param amountIn Input Amount
-        // @param path_len Length of path array
         // @param path Array of pair addresses through which swaps are chained
-        // @return amounts_len Required output amount array's length
         // @return amounts Required output amount array
         fn get_amounts_out(self: @ContractState, amountIn: u256, path: Array::<ContractAddress>) -> Array::<u256> {
             let factory = self._factory.read();
@@ -147,9 +145,7 @@ mod RouterC1 {
 
         // @notice Performs chained get_amount_in calculations on any number of pairs
         // @param amountOut Output Amount
-        // @param path_len Length of path array
         // @param path Array of pair addresses through which swaps are chained
-        // @return amounts_len Required input amount array's length
         // @return amounts Required input amount array
         fn get_amounts_in(self: @ContractState, amountOut: u256, path: Array::<ContractAddress>) -> Array::<u256> {
             let factory = self._factory.read();
@@ -244,11 +240,9 @@ mod RouterC1 {
         // @dev `caller` should have already given the router an allowance of at least amountIn on the input token
         // @param amountIn The amount of input tokens to send
         // @param amountOutMin The minimum amount of output tokens that must be received for the transaction not to revert
-        // @param path_len Length of path array
         // @param path Array of pair addresses through which swaps are chained
         // @param to Recipient of the output tokens
         // @param deadline Timestamp after which the transaction will revert
-        // @return amounts_len Length of amounts array
         // @return amounts The input token amount and all subsequent output token amounts
         fn swap_exact_tokens_for_tokens(ref self: ContractState,
             amountIn: u256,
@@ -272,11 +266,9 @@ mod RouterC1 {
         // @dev `caller` should have already given the router an allowance of at least amountInMax on the input token
         // @param amountOut The amount of output tokens to receive
         // @param amountInMax The maximum amount of input tokens that can be required before the transaction reverts
-        // @param path_len Length of path array
         // @param path Array of pair addresses through which swaps are chained
         // @param to Recipient of the output tokens
         // @param deadline Timestamp after which the transaction will revert
-        // @return amounts_len Length of amounts array
         // @return amounts The input token amount and all subsequent output token amounts
         fn swap_tokens_for_exact_tokens(ref self: ContractState,
             amountOut: u256,
@@ -507,7 +499,7 @@ mod RouterC1 {
             let (reserveIn, reserveOut) = _get_reserves(factory, *path[current_index - 1], *path[current_index]);
             amounts
                 .append(
-                    _get_amount_in(*amounts[path.len() - current_index], reserveIn, reserveOut)
+                    _get_amount_in(*amounts[amounts.len() - 1], reserveIn, reserveOut)
                 );
             current_index -= 1;
         };
