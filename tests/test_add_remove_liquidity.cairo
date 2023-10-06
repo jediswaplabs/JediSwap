@@ -2,7 +2,8 @@ use starknet:: { ContractAddress, ClassHash };
 use snforge_std::{ declare, ContractClassTrait, ContractClass, start_warp, start_prank, stop_prank,
                    spy_events, SpyOn, EventSpy, EventFetcher, Event, EventAssertions };
 
-use tests::utils::{ deployer_addr, token0, token1, burn_addr, user1 };
+use tests::utils::{ deployer_addr, token0, token1, burn_addr, user1, TOKEN_MULTIPLIER, TOKEN0_NAME,
+                    TOKEN1_NAME, SYMBOL, MINIMUM_LIQUIDITY };
 
 #[starknet::interface]
 trait IERC20<TContractState> {
@@ -54,14 +55,6 @@ trait IRouterC1<T> {
     fn swap_tokens_for_exact_tokens(ref self: T, amountOut: u256, amountInMax: u256, path: Array::<ContractAddress>, to: ContractAddress, deadline: u64) -> Array::<u256>;
     fn replace_implementation_class(ref self: T, new_implementation_class: ClassHash);
 }
-
-
-const TOKEN_MULTIPLIER: u256 = 1000000000000000000;
-const TOKEN0_NAME: felt252 = 'TOKEN0';
-const TOKEN1_NAME: felt252 = 'TOKEN1';
-const SYMBOL: felt252 = 'SYMBOL';
-const MINIMUM_LIQUIDITY: u256 = 1000;
-
 
 fn deploy_contracts() -> (ContractAddress, ContractAddress) {
     let pair_class = declare('PairC1');

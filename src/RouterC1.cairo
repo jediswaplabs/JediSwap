@@ -195,14 +195,13 @@ mod RouterC1 {
         // @dev `caller` should have already given the router an allowance of at least liquidity on the pool
         // @param tokenA Address of tokenA
         // @param tokenB Address of tokenB
-        // @param tokenB Address of tokenB
         // @param liquidity The amount of liquidity tokens to remove
         // @param amountAMin The minimum amount of tokenA that must be received for the transaction not to revert
         // @param amountBMin The minimum amount of tokenB that must be received for the transaction not to revert
         // @param to Recipient of the underlying tokens
         // @param deadline Timestamp after which the transaction will revert
         // @return amountA The amount of tokenA received
-        // @return amountB The amount of tokenA received
+        // @return amountB The amount of tokenB received
         fn remove_liquidity(ref self: ContractState,
             tokenA: ContractAddress,
             tokenB: ContractAddress,
