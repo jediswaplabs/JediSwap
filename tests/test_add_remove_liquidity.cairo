@@ -2,8 +2,8 @@ use starknet:: { ContractAddress, ClassHash };
 use snforge_std::{ declare, ContractClassTrait, ContractClass, start_warp, start_prank, stop_prank,
                    spy_events, SpyOn, EventSpy, EventFetcher, Event, EventAssertions };
 
-mod utils;
-use utils::{ token0, token1, burn_addr, user1 };
+use tests::utils::{ deployer_addr, token0, token1, burn_addr, user1, TOKEN_MULTIPLIER, TOKEN0_NAME,
+                    TOKEN1_NAME, SYMBOL, MINIMUM_LIQUIDITY };
 
 #[starknet::interface]
 trait IERC20<TContractState> {
@@ -56,22 +56,12 @@ trait IRouterC1<T> {
     fn replace_implementation_class(ref self: T, new_implementation_class: ClassHash);
 }
 
-
-const TOKEN_MULTIPLIER: u256 = 1000000000000000000;
-const TOKEN0_NAME: felt252 = 'TOKEN0';
-const TOKEN1_NAME: felt252 = 'TOKEN1';
-const SYMBOL: felt252 = 'SYMBOL';
-const MINIMUM_LIQUIDITY: u256 = 1000;
-
-
 fn deploy_contracts() -> (ContractAddress, ContractAddress) {
-    let deployer_address = 123456789987654321;
-
     let pair_class = declare('PairC1');
 
     let mut factory_constructor_calldata = Default::default();
     Serde::serialize(@pair_class.class_hash, ref factory_constructor_calldata);
-    Serde::serialize(@deployer_address, ref factory_constructor_calldata);
+    Serde::serialize(@deployer_addr(), ref factory_constructor_calldata);
     let factory_class = declare('FactoryC1');
     
     let factory_address = factory_class.deploy(@factory_constructor_calldata).unwrap();
