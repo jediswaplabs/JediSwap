@@ -173,7 +173,8 @@ fn test_swap_exact_0_to_1(){
         (
             pair_address,
             PairC1::PairC1::Event::Swap(
-                PairC1::PairC1::Swap {sender: router_address, amount0In: amount_token_0, amount1In: 0_u256, amount0Out: 0_u256, amount1Out: amount1Out, to: user2() }
+                PairC1::PairC1::Swap {sender: router_address, amount0In: amount_token_0, amount1In: 0_u256, 
+                                      amount0Out: 0_u256, amount1Out: amount1Out, to: user2() }
             )
         )
     ]);
@@ -265,7 +266,8 @@ fn test_swap_0_to_exact_1(){
         (
             pair_address,
             PairC1::PairC1::Event::Swap(
-                PairC1::PairC1::Swap {sender: router_address, amount0In: amount0In, amount1In: 0_u256, amount0Out: 0_u256, amount1Out: amount_token_1, to: user2() }
+                PairC1::PairC1::Swap {sender: router_address, amount0In: amount0In, amount1In: 0_u256, 
+                                      amount0Out: 0_u256, amount1Out: amount_token_1, to: user2() }
             )
         )
     ]);
@@ -387,7 +389,8 @@ fn test_swap_exact_0_to_2(){
         (
             pair_address,
             PairC1::PairC1::Event::Swap(
-                PairC1::PairC1::Swap {sender: router_address, amount0In: amount_token_0, amount1In: 0_u256, amount0Out: 0_u256, amount1Out: amount1Out, to: other_pair_address }
+                PairC1::PairC1::Swap {sender: router_address, amount0In: amount_token_0, amount1In: 0_u256, 
+                                      amount0Out: 0_u256, amount1Out: amount1Out, to: other_pair_address }
             )
         )
     ]);
@@ -404,7 +407,8 @@ fn test_swap_exact_0_to_2(){
         (
             other_pair_address,
             PairC1::PairC1::Event::Swap(
-                PairC1::PairC1::Swap {sender: router_address, amount0In: 0_u256, amount1In: amount1Out, amount0Out: amount2Out, amount1Out: 0_u256, to: user2() }
+                PairC1::PairC1::Swap {sender: router_address, amount0In: 0_u256, amount1In: amount1Out, 
+                                      amount0Out: amount2Out, amount1Out: 0_u256, to: user2() }
             )
         )
     ]);
@@ -488,7 +492,8 @@ fn test_swap_exact_1_to_0(){
         (
             pair_address,
             PairC1::PairC1::Event::Swap(
-                PairC1::PairC1::Swap {sender: router_address, amount0In: 0_u256, amount1In: amount_token_1, amount0Out: amount0Out, amount1Out: 0_u256, to: user2() }
+                PairC1::PairC1::Swap {sender: router_address, amount0In: 0_u256, amount1In: amount_token_1, 
+                                      amount0Out: amount0Out, amount1Out: 0_u256, to: user2() }
             )
         )
     ]);

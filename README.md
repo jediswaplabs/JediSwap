@@ -13,7 +13,7 @@ Starknet Foundry is a StarkNet smart contract development toolchain, which helps
 You may need to install a specific version of Scarb and Starknet Foundry
 
 1. Install [Scarb](https://docs.swmansion.com/scarb/download.html)
-2. Copy and run in a terminal the following commands:
+2. Install Starknet Foundry:
 ```
 curl -L https://raw.githubusercontent.com/foundry-rs/starknet-foundry/master/scripts/install.sh | sh
 ```

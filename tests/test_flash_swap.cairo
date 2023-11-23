@@ -414,7 +414,8 @@ fn test_flash_swap_same_token_repayment(){
         (
             pair_address,
             PairC1::PairC1::Event::Swap(
-                PairC1::PairC1::Swap {sender: user2(), amount0In: amount0In, amount1In: 0_u256, amount0Out: amount_token_0, amount1Out: 0_u256, to: flash_swap_address}
+                PairC1::PairC1::Swap {sender: user2(), amount0In: amount0In, amount1In: 0_u256, 
+                                      amount0Out: amount_token_0, amount1Out: 0_u256, to: flash_swap_address}
             )
         )
     ]);
@@ -501,7 +502,8 @@ fn test_flash_swap_other_token_repayment(){
         (
             pair_address,
             PairC1::PairC1::Event::Swap(
-                PairC1::PairC1::Swap {sender: user2(), amount0In: amount_token_0, amount1In: amount_to_transfer_token_1, amount0Out: amount_token_0, amount1Out: 0_u256, to: flash_swap_address}
+                PairC1::PairC1::Swap {sender: user2(), amount0In: amount_token_0, amount1In: amount_to_transfer_token_1, 
+                                      amount0Out: amount_token_0, amount1Out: 0_u256, to: flash_swap_address}
             )
         )
     ]);
