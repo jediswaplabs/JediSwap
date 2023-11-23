@@ -2,6 +2,7 @@ use starknet:: { ContractAddress, ClassHash };
 use snforge_std::{ declare, ContractClassTrait, ContractClass, start_warp, start_prank, stop_prank,
                    spy_events, SpyOn, EventSpy, EventFetcher, Event, EventAssertions };
 
+use jediswap::PairC1;
 use tests::utils::{ deployer_addr, token0, token1, burn_addr, user1, TOKEN_MULTIPLIER, TOKEN0_NAME,
                     TOKEN1_NAME, SYMBOL, MINIMUM_LIQUIDITY };
 
@@ -157,12 +158,13 @@ fn test_add_remove_liquidity_created_pair(){
     assert(amountA == amount_token0, 'amountA should be equal');
     assert(amountB == amount_token1, 'amountB should be equal');
 
-    let mut event_data = Default::default();
-    Serde::serialize(@user1(), ref event_data);
-    Serde::serialize(@amount_token0, ref event_data);
-    Serde::serialize(@amount_token1, ref event_data);
     spy.assert_emitted(@array![
-        Event { from: pair_address, name: 'Mint', keys: array![], data: event_data }
+        (
+            pair_address,
+            PairC1::PairC1::Event::Mint(
+                PairC1::PairC1::Mint {sender: user1(), amount0: amount_token0, amount1: amount_token1}
+            )
+        )
     ]);
 
     let (reserve_0, reserve_1, _) = pair_dispatcher.get_reserves();
@@ -196,12 +198,13 @@ fn test_add_remove_liquidity_created_pair(){
     assert(amountA == amount_token0, 'amountA again should be equal');
     assert(amountB == amount_token1, 'amountB again should be equal');
 
-    let mut event_data = Default::default();
-    Serde::serialize(@user1(), ref event_data);
-    Serde::serialize(@amount_token0, ref event_data);
-    Serde::serialize(@amount_token1, ref event_data);
     spy.assert_emitted(@array![
-        Event { from: pair_address, name: 'Mint', keys: array![], data: event_data }
+        (
+            pair_address,
+            PairC1::PairC1::Event::Mint(
+                PairC1::PairC1::Mint {sender: user1(), amount0: amount_token0, amount1: amount_token1}
+            )
+        )
     ]);
 
     let (reserve_0, reserve_1, _) = pair_dispatcher.get_reserves();
@@ -235,13 +238,13 @@ fn test_add_remove_liquidity_created_pair(){
         token0_address, token1_address, user_1_pair_balance, 1, 1, user1(), 0);
     stop_prank(router_address);
 
-    let mut event_data = Default::default();
-    Serde::serialize(@router_address, ref event_data);
-    Serde::serialize(@amountA_burn, ref event_data);
-    Serde::serialize(@amountB_burn, ref event_data);
-    Serde::serialize(@user1(), ref event_data);
     spy.assert_emitted(@array![
-        Event { from: pair_address, name: 'Burn', keys: array![], data: event_data }
+        (
+            pair_address,
+            PairC1::PairC1::Event::Burn(
+                PairC1::PairC1::Burn {sender: router_address, amount0: amountA_burn, amount1: amountB_burn, to: user1()}
+            )
+        )
     ]);
 
     let user_1_pair_balance_burn: u256 = pair_dispatcher.balance_of(user1());
@@ -331,12 +334,13 @@ fn test_add_remove_liquidity_for_non_created_pair(){
     assert(amountA == amount_token0, 'amountA again should be equal');
     assert(amountB == amount_token1, 'amountB again should be equal');
 
-    let mut event_data = Default::default();
-    Serde::serialize(@user1(), ref event_data);
-    Serde::serialize(@amount_token0, ref event_data);
-    Serde::serialize(@amount_token1, ref event_data);
     spy.assert_emitted(@array![
-        Event { from: pair_address, name: 'Mint', keys: array![], data: event_data }
+        (
+            pair_address,
+            PairC1::PairC1::Event::Mint(
+                PairC1::PairC1::Mint {sender: user1(), amount0: amount_token0, amount1: amount_token1}
+            )
+        )
     ]);
 
     let (reserve_0, reserve_1, _) = pair_dispatcher.get_reserves();
@@ -370,13 +374,13 @@ fn test_add_remove_liquidity_for_non_created_pair(){
         token0_address, token1_address, user_1_pair_balance, 1, 1, user1(), 0);
     stop_prank(router_address);
 
-    let mut event_data = Default::default();
-    Serde::serialize(@router_address, ref event_data);
-    Serde::serialize(@amountA_burn, ref event_data);
-    Serde::serialize(@amountB_burn, ref event_data);
-    Serde::serialize(@user1(), ref event_data);
     spy.assert_emitted(@array![
-        Event { from: pair_address, name: 'Burn', keys: array![], data: event_data }
+        (
+            pair_address,
+            PairC1::PairC1::Event::Burn(
+                PairC1::PairC1::Burn {sender: router_address, amount0: amountA_burn, amount1: amountB_burn, to: user1()}
+            )
+        )
     ]);
 
     let user_1_pair_balance_burn: u256 = pair_dispatcher.balance_of(user1());

@@ -1,11 +1,4 @@
-// @title JediSwap Pair Cairo 1.0
-// @author Mesh Finance
-// @license MIT
-// @notice Low level pair contract
-// @dev Based on the Uniswap V2 pair
-//      https://github.com/Uniswap/v2-core/blob/master/contracts/UniswapV2Pair.sol
-//      Also an ERC20 token
-
+// Copy of the PairC1 contract. It's used to test the upgrade process
 use starknet::ContractAddress;
 use starknet::ClassHash;
 //
@@ -37,7 +30,7 @@ trait IJediSwapCallee<T> {
 // Contract Interface
 //
 #[starknet::interface]
-trait IPairC1<TContractState> {
+trait IPairTestC1<TContractState> {
     // view functions
     fn name(self: @TContractState) -> felt252;
     fn symbol(self: @TContractState) -> felt252;
@@ -71,7 +64,7 @@ trait IPairC1<TContractState> {
 }
 
 #[starknet::contract]
-mod PairC1 {
+mod PairTestC1 {
     use jediswap::utils::erc20::ERC20;
     use traits::Into; // TODO remove intos when u256 inferred type is available
     use option::OptionTrait;
@@ -170,7 +163,7 @@ mod PairC1 {
     }
 
     #[external(v0)]
-    impl PairC1 of super::IPairC1<ContractState> {
+    impl PairTestC1 of super::IPairTestC1<ContractState> {
 
         //
         // Getters ERC20
@@ -385,7 +378,7 @@ mod PairC1 {
             let amount0 = balance0 - reserve0;
             let amount1 = balance1 - reserve1;
             let fee_on = InternalImpl::_mint_protocol_fee(ref self, reserve0, reserve1);
-            let _total_supply = PairC1::total_supply(@self);
+            let _total_supply = PairTestC1::total_supply(@self);
             let mut liquidity = 0.into();
             if (_total_supply == 0.into()) {
                 liquidity = u256 { low: u256_sqrt(amount0 * amount1) - 1000.try_into().unwrap(), high: 0 };
@@ -433,9 +426,9 @@ mod PairC1 {
             let mut balance0 = _balance_of_token(token0, self_address);
             let token1 = self._token1.read();
             let mut balance1 = _balance_of_token(token1, self_address);
-            let liquidity = PairC1::balance_of(@self, self_address);
+            let liquidity = PairTestC1::balance_of(@self, self_address);
             let fee_on = InternalImpl::_mint_protocol_fee(ref self, reserve0, reserve1);
-            let _total_supply = PairC1::total_supply(@self);
+            let _total_supply = PairTestC1::total_supply(@self);
 
             let amount0 = (liquidity * balance0) / _total_supply;
             let amount1 = (liquidity * balance1) / _total_supply;
@@ -616,7 +609,7 @@ mod PairC1 {
                     let rootk = u256 { low: u256_sqrt(reserve0 * reserve1), high: 0 };
                     let rootklast = u256 { low: u256_sqrt(klast), high: 0 };
                     if (rootk > rootklast) {
-                        let numerator = PairC1::total_supply(@self) * (rootk - rootklast);
+                        let numerator = PairTestC1::total_supply(@self) * (rootk - rootklast);
                         let denominator = (rootk * 5.into()) + rootklast;
                         let liquidity = numerator / denominator;
                         if (liquidity > 0.into()) {

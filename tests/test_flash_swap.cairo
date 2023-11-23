@@ -2,6 +2,7 @@ use starknet:: { ContractAddress, ClassHash, contract_address_try_from_felt252 }
 use snforge_std::{ declare, ContractClassTrait, ContractClass, start_prank, stop_prank,
                    spy_events, SpyOn, EventSpy, EventFetcher, Event, EventAssertions };
 
+use jediswap::PairC1;
 use tests::utils::{ deployer_addr, user1, user2, TOKEN_MULTIPLIER, TOKEN0_NAME,
                     TOKEN1_NAME, SYMBOL };
 
@@ -409,15 +410,13 @@ fn test_flash_swap_same_token_repayment(){
 
     let amount0In: u256 = amount_token_0 + amount_to_transfer_token_0;
 
-    let mut event_data = Default::default();
-    Serde::serialize(@user2(), ref event_data);
-    Serde::serialize(@amount0In, ref event_data);
-    Serde::serialize(@0_u256, ref event_data);
-    Serde::serialize(@amount_token_0, ref event_data);
-    Serde::serialize(@0_u256, ref event_data);
-    Serde::serialize(@flash_swap_address, ref event_data);
     spy.assert_emitted(@array![
-        Event { from: pair_address, name: 'Swap', keys: array![], data: event_data }
+        (
+            pair_address,
+            PairC1::PairC1::Event::Swap(
+                PairC1::PairC1::Swap {sender: user2(), amount0In: amount0In, amount1In: 0_u256, amount0Out: amount_token_0, amount1Out: 0_u256, to: flash_swap_address}
+            )
+        )
     ]);
 }
 
@@ -498,14 +497,12 @@ fn test_flash_swap_other_token_repayment(){
     pair_dispatcher.swap(amount_token_0, 0, flash_swap_address, data);
     stop_prank(pair_address);
 
-    let mut event_data = Default::default();
-    Serde::serialize(@user2(), ref event_data);
-    Serde::serialize(@amount_token_0, ref event_data);
-    Serde::serialize(@amount_to_transfer_token_1, ref event_data);
-    Serde::serialize(@amount_token_0, ref event_data);
-    Serde::serialize(@0_u256, ref event_data);
-    Serde::serialize(@flash_swap_address, ref event_data);
     spy.assert_emitted(@array![
-        Event { from: pair_address, name: 'Swap', keys: array![], data: event_data }
+        (
+            pair_address,
+            PairC1::PairC1::Event::Swap(
+                PairC1::PairC1::Swap {sender: user2(), amount0In: amount_token_0, amount1In: amount_to_transfer_token_1, amount0Out: amount_token_0, amount1Out: 0_u256, to: flash_swap_address}
+            )
+        )
     ]);
 }
