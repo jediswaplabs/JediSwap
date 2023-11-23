@@ -4,35 +4,35 @@ Clone of Uniswap V2 to Cairo. AMM for StarkNet.
 
 ## Testing and Development
 
-We use [Protostar](https://docs.swmansion.com/protostar/) for our testing and development purposes. 
-Protostar is a StarkNet smart contract development toolchain, which helps you with dependencies management, compiling and testing cairo contracts.
-### Install Protostar
+We use [Starknet Foundry](https://github.com/foundry-rs/starknet-foundry) for our testing and development purposes. 
+Starknet Foundry is a StarkNet smart contract development toolchain, which helps you with dependencies management, compiling and testing cairo contracts.
 
+### Install Starknet Foundry
 
-1. Copy and run in a terminal the following command:
+#### Note:
+You may need to install a specific version of Scarb and Starknet Foundry
+
+1. Install [Scarb](https://docs.swmansion.com/scarb/download.html)
+2. Install Starknet Foundry:
 ```
-curl -L https://raw.githubusercontent.com/software-mansion/protostar/master/install.sh | bash
+curl -L https://raw.githubusercontent.com/foundry-rs/starknet-foundry/master/scripts/install.sh | sh
 ```
-2. Restart the terminal.
-3. Run `protostar -v` to check Protostar and cairo-lang version.
-
-#### Note 
-Protostar requires version 2.28 or greater of Git.
-
-
-### Install Protostar Dependencies
+Follow the instructions and then run:
 ```
-protostar install
+snfoundryup
 ```
+3. Restart the terminal.
+4. Run `snforge --version` to check the Starknet Foundry version.
+5. Run `scarb --version` to check the Cairo version.
 
 ### Compile Contracts
-```
-protostar build
-```
+TODO
 
 ### Run Tests
+1. In the `Scarb.toml` file insert the Starknet Mainnet RPC endpint to the `url` object of the `Fork` section. You can use [Alchemy](https://www.alchemy.com/) or [Infura](https://www.infura.io/)
+2. Run tests:
 ```
-protostar test
+snforge test
 ```
 
 ### Run Scripts

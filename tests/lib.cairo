@@ -5,4 +5,5 @@ mod test_flash_swap;
 mod test_protocol_fee;
 mod test_swap;
 mod test_updates;
+mod test_upgrades;
 mod utils;

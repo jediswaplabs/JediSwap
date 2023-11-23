@@ -2,6 +2,7 @@ use starknet:: { ContractAddress, ClassHash };
 use snforge_std::{ declare, ContractClassTrait, ContractClass, start_prank, stop_prank,
                    spy_events, SpyOn, EventSpy, EventFetcher, Event, EventAssertions };
 
+use jediswap::PairC1;
 use tests::utils::{ deployer_addr, user1, user2, TOKEN_MULTIPLIER, TOKEN0_NAME,
                     TOKEN1_NAME, TOKEN2_NAME, SYMBOL };
 
@@ -168,15 +169,14 @@ fn test_swap_exact_0_to_1(){
     let amount0In: u256 = *amounts.at(0);
     let amount1Out: u256 = *amounts.at(1);
 
-    let mut event_data = Default::default();
-    Serde::serialize(@router_address, ref event_data);
-    Serde::serialize(@amount_token_0, ref event_data);
-    Serde::serialize(@0_u256, ref event_data);
-    Serde::serialize(@0_u256, ref event_data);
-    Serde::serialize(@amount1Out, ref event_data);
-    Serde::serialize(@user2(), ref event_data);
     spy.assert_emitted(@array![
-        Event { from: pair_address, name: 'Swap', keys: array![], data: event_data }
+        (
+            pair_address,
+            PairC1::PairC1::Event::Swap(
+                PairC1::PairC1::Swap {sender: router_address, amount0In: amount_token_0, amount1In: 0_u256, 
+                                      amount0Out: 0_u256, amount1Out: amount1Out, to: user2() }
+            )
+        )
     ]);
 
     let user_2_token_0_balance_final: u256 = token0_erc20_dispatcher.balance_of(user2());
@@ -262,15 +262,14 @@ fn test_swap_0_to_exact_1(){
     let amount0In: u256 = *amounts.at(0);
     let amount1Out: u256 = *amounts.at(1);
 
-    let mut event_data = Default::default();
-    Serde::serialize(@router_address, ref event_data);
-    Serde::serialize(@amount0In, ref event_data);
-    Serde::serialize(@0_u256, ref event_data);
-    Serde::serialize(@0_u256, ref event_data);
-    Serde::serialize(@amount_token_1, ref event_data);
-    Serde::serialize(@user2(), ref event_data);
     spy.assert_emitted(@array![
-        Event { from: pair_address, name: 'Swap', keys: array![], data: event_data }
+        (
+            pair_address,
+            PairC1::PairC1::Event::Swap(
+                PairC1::PairC1::Swap {sender: router_address, amount0In: amount0In, amount1In: 0_u256, 
+                                      amount0Out: 0_u256, amount1Out: amount_token_1, to: user2() }
+            )
+        )
     ]);
 
     let user_2_token_0_balance_final: u256 = token0_erc20_dispatcher.balance_of(user2());
@@ -386,15 +385,14 @@ fn test_swap_exact_0_to_2(){
     let amount1Out: u256 = *amounts.at(1);
     let amount2Out: u256 = *amounts.at(2);
 
-    let mut event_data = Default::default();
-    Serde::serialize(@router_address, ref event_data);
-    Serde::serialize(@amount_token_0, ref event_data);
-    Serde::serialize(@0_u256, ref event_data);
-    Serde::serialize(@0_u256, ref event_data);
-    Serde::serialize(@amount1Out, ref event_data);
-    Serde::serialize(@other_pair_address, ref event_data);
     spy_pair_address.assert_emitted(@array![
-        Event { from: pair_address, name: 'Swap', keys: array![], data: event_data }
+        (
+            pair_address,
+            PairC1::PairC1::Event::Swap(
+                PairC1::PairC1::Swap {sender: router_address, amount0In: amount_token_0, amount1In: 0_u256, 
+                                      amount0Out: 0_u256, amount1Out: amount1Out, to: other_pair_address }
+            )
+        )
     ]);
 
     let user_2_token_0_balance_final: u256 = token0_erc20_dispatcher.balance_of(user2());
@@ -405,15 +403,14 @@ fn test_swap_exact_0_to_2(){
     let user_2_token_2_balance_difference = user_2_token_2_balance_final - user_2_token_2_balance_initial;
     assert(user_2_token_2_balance_difference == amount2Out, 'should be eq to amount2Out');
 
-    let mut event_data = Default::default();
-    Serde::serialize(@router_address, ref event_data);
-    Serde::serialize(@0_u256, ref event_data);
-    Serde::serialize(@amount1Out, ref event_data);
-    Serde::serialize(@amount2Out, ref event_data);
-    Serde::serialize(@0_u256, ref event_data);
-    Serde::serialize(@user2(), ref event_data);
     spy_other_pair_address.assert_emitted(@array![
-        Event { from: other_pair_address, name: 'Swap', keys: array![], data: event_data }
+        (
+            other_pair_address,
+            PairC1::PairC1::Event::Swap(
+                PairC1::PairC1::Swap {sender: router_address, amount0In: 0_u256, amount1In: amount1Out, 
+                                      amount0Out: amount2Out, amount1Out: 0_u256, to: user2() }
+            )
+        )
     ]);
 
 }
@@ -491,15 +488,14 @@ fn test_swap_exact_1_to_0(){
     let amount1In: u256 = *amounts.at(0);
     let amount0Out: u256 = *amounts.at(1);
 
-    let mut event_data = Default::default();
-    Serde::serialize(@router_address, ref event_data);
-    Serde::serialize(@0_u256, ref event_data);
-    Serde::serialize(@amount_token_1, ref event_data);
-    Serde::serialize(@amount0Out, ref event_data);
-    Serde::serialize(@0_u256, ref event_data);
-    Serde::serialize(@user2(), ref event_data);
     spy.assert_emitted(@array![
-        Event { from: pair_address, name: 'Swap', keys: array![], data: event_data }
+        (
+            pair_address,
+            PairC1::PairC1::Event::Swap(
+                PairC1::PairC1::Swap {sender: router_address, amount0In: 0_u256, amount1In: amount_token_1, 
+                                      amount0Out: amount0Out, amount1Out: 0_u256, to: user2() }
+            )
+        )
     ]);
 
     let user_2_token_0_balance_final: u256 = token0_erc20_dispatcher.balance_of(user2());

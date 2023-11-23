@@ -1,5 +1,5 @@
 [package]
-name = "JediSwap"
+name = "jediswap"
 version = "1.0.0"
 
 [[target.starknet-contract]]
@@ -8,6 +8,11 @@ casm = true
 casm-add-pythonic-hints = true
 allowed-libfuncs-list.name = "all"
 
+[[tool.snforge.fork]]
+name = "mainnet_fork"
+url = ""
+block_id.tag = "Latest"
+
 [dependencies]
 starknet = "2.2.0"
-snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry.git", tag = "v0.7.1" }
+snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry.git", tag = "v0.8.3" }
